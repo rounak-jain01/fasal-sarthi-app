@@ -15,6 +15,10 @@ import joblib
 from datetime import datetime, timezone, timedelta
 import pandas as pd # For handling categorical features
 from sklearn.preprocessing import LabelEncoder # Although we load it, good to import
+# import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -318,7 +322,12 @@ def handle_fertilizer_recommendation():
 
 
 # --- CHATBOT SETUP (Direct API Call) ---
-GOOGLE_API_KEY = 'AIzaSyCe2HT97f4nezVtdMmttVSwwKjZPtLVTW0' # Aapki Google API Key
+# --- CHATBOT SETUP ---
+# Load key from environment variable
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+if not GOOGLE_API_KEY:
+    print("ERROR: GOOGLE_API_KEY environment variable not set!")
+    # Optionally exit or handle the error
 # Hum 'v1beta' URL ka use karenge (jo API keys support karta hai)
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GOOGLE_API_KEY}"
 
@@ -371,7 +380,10 @@ def handle_chat():
 
 
 # --- 6. WEATHER API SETUP ---
-OWM_API_KEY = 'aa7fc75062813e1e9ba9582d7d98c25e' # <-- Apni nayi key yahaan paste karein
+OWM_API_KEY = os.getenv('OWM_API_KEY')
+if not OWM_API_KEY:
+    print("ERROR: OWM_API_KEY environment variable not set!")
+    # Optionally exit or handle the error
 OWM_API_URL = "https://api.openweathermap.org/data/2.5/weather"
 
 # --- 7. NAYA WEATHER ENDPOINT ---
@@ -460,5 +472,5 @@ def handle_get_weather():
         print(f"Error during detailed weather fetch: {e}")
         return jsonify({"error": "Failed to fetch detailed weather data"}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+# if __name__ == '__main__':
+#     app.run(debug=True, host='0.0.0.0', port=5000)
