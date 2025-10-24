@@ -71,10 +71,19 @@ def home():
 @app.route('/predict_disease', methods=['POST'])
 def handle_prediction():
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        print("DEBUG: 'file' key not found in request.files") # Add debug print
+        print(f"DEBUG: request.files keys: {list(request.files.keys())}") # See what keys ARE present
+        return jsonify({"error": "No file part key found in form-data"}), 400
+    
+    # if 'file' not in request.files:
+    #     return jsonify({"error": "No file part"}), 400
+    
     file = request.files.get('file')
+
     if not file or file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        print(f"DEBUG: file object invalid or no filename. file={file}") # Add debug print
+        return jsonify({"error": "No selected file or file object invalid"}), 400
+    
     try:
         image_bytes = file.read()
         img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
@@ -91,8 +100,9 @@ def handle_prediction():
         })
     except Exception as e:
         print(f"Prediction error: {e}")
+        import traceback
+        traceback.print_exc() # Print full traceback for debugging
         return jsonify({"error": "Error processing image"}), 500
-
 
 
     
