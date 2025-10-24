@@ -94,7 +94,7 @@ def handle_prediction():
         predicted_class_index = np.argmax(predictions[0])
         predicted_class_name = CLASS_NAMES[predicted_class_index]
         confidence = float(np.max(predictions[0]))
-        return jsonify({
+        return jsonify({ 
             "predicted_disease": predicted_class_name,
             "confidence": f"{confidence * 100:.2f}%"
         })
