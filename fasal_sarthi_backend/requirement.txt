@@ -1,0 +1,11 @@
+# Flask web server ke liye
+pip install Flask
+
+# Aapke .h5 model ko load karne aur chalaane ke liye
+pip install tensorflow
+
+# Images ko process karne ke liye
+pip install Pillow numpy
+
+# Cross-Origin Resource Sharing (React-Flask connection ke liye)
+pip install flask-cors
