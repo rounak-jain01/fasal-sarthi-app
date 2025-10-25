@@ -1,5 +1,6 @@
 import os
 import io
+import threading
 import numpy as np
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -61,8 +62,9 @@ CLASS_NAMES = [
 # model.load_weights(MODEL_WEIGHTS_PATH)
 # print("Model weights loaded successfully! Server is ready.")
 # Global variable for the model, initially None
-disease_model = None
+disease_interpreter = None
 model_loading_error = None # To store loading error
+interpreter_lock = threading.Lock()  # For thread-safety when invoking interpreter
 
 # Function to load the model when needed
 def get_disease_interpreter():
@@ -90,6 +92,7 @@ def get_disease_interpreter():
         disease_interpreter = None
         return None
 # --- 3. FLASK APP LOGIC ---
+
 app = Flask(__name__)
 CORS(app)
 
