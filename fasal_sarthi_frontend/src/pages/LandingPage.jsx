@@ -122,7 +122,7 @@ function LandingPage() {
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Developer 1 */}
           <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1">
-            <img src='./src/assests/Lakshya.jpg' alt="Developer 1" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
+            <img src='/Lakshya.jpg' alt="Developer 1" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
             <h4 className="text-xl font-bold mb-1">Lakshya Saxena</h4>
             <p className="text-green-600 font-medium mb-2">Data Scientist & Backend Developer</p>
             <p className="text-gray-600 text-sm">Responsible for dataset curation, developed robust AI integration for disease detection and chatbot.</p>
@@ -130,7 +130,7 @@ function LandingPage() {
           </div>
           {/* Developer 2 */}
           <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1">
-            <img src='./src/assests/Rounak_Jain.jpg' alt="Developer 2" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
+            <img src='/Rounak_Jain.jpg' alt="Developer 2" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
             <h4 className="text-xl font-bold mb-1">Rounak Jain</h4>
             <p className="text-green-600 font-medium mb-2">Project Lead And Model Trainer</p>
             <p className="text-gray-600 text-sm">Orchestrated the entire project, model training, and performance optimization for disease detection.</p>
@@ -138,7 +138,7 @@ function LandingPage() {
           </div>
           {/* Developer 3 */}
           <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1">
-            <img src='./src/assests/Shivam.jpg' alt="Developer 3" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
+            <img src='/Shivam.jpg' alt="Developer 3" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
             <h4 className="text-xl font-bold mb-1">Shivam Kahar</h4>
             <p className="text-green-600 font-medium mb-2">Frontend And UI/UX Specialist</p>
             <p className="text-gray-600 text-sm">Designed and implemented the intuitive user interface, focusing on mobile-first responsiveness.</p>
@@ -146,7 +146,7 @@ function LandingPage() {
           </div>
           {/* Developer 4 */}
           <div className="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1">
-            <img src='./src/assests/Priyani.jpg' alt="Developer 4" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
+            <img src='/Priyani.jpg' alt="Developer 4" className="w-32 h-32 rounded-full object-cover mb-4 ring-4 ring-green-300" />
             <h4 className="text-xl font-bold mb-1">Priyani Rathod</h4>
             <p className="text-green-600 font-medium mb-2">Database & Cloud Deployment</p>
             <p className="text-gray-600 text-sm">Managed cloud infrastructure, database setup, and ensured seamless application deployment.</p>

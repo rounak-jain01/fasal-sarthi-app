@@ -4,7 +4,7 @@ import {
   LuSearch, LuLoader,LuTriangleAlert as LuAlertTriangle, // Corrected Alert Icon name
   LuWind, LuDroplet, LuMapPin,
   LuSunrise, LuSunset, LuEye, LuGauge, LuCloud, LuNavigation // Added LuNavigation
-} from 'react-icons/lu';
+} from 'react-icons/lu';     
 
 // Helper function to get Wind Direction Icon Rotation
 const getWindDirectionRotation = (deg) => {
