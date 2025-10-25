@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import { LuFlaskConical, LuLoader,LuTriangleAlert as LuAlertTriangle, LuSearch } from 'react-icons/lu';
-
+import React, { useState } from "react";
+import axios from "axios";
+import {
+  LuFlaskConical,
+  LuLoader,
+  LuTriangleAlert as LuAlertTriangle,
+  LuSearch,
+} from "react-icons/lu";
+// Add this line below your imports
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 // --- Reusable Input Field Component ---
-const InputField = ({ label, name, value, onChange, placeholder, type = "number", required = true }) => (
+const InputField = ({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  type = "number",
+  required = true,
+}) => (
   <div className="flex flex-col">
     <label htmlFor={name} className="text-sm font-medium text-gray-700 mb-1">
       {label}
@@ -23,7 +38,14 @@ const InputField = ({ label, name, value, onChange, placeholder, type = "number"
 );
 
 // --- Reusable Select Field Component ---
-const SelectField = ({ label, name, value, onChange, options, required = true }) => (
+const SelectField = ({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+  required = true,
+}) => (
   <div className="flex flex-col">
     <label htmlFor={name} className="text-sm font-medium text-gray-700 mb-1">
       {label}
@@ -36,9 +58,13 @@ const SelectField = ({ label, name, value, onChange, options, required = true })
       className="w-full px-4 py-3 bg-white/60 backdrop-blur-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-shadow duration-200 shadow-sm"
       required={required}
     >
-      <option value="" disabled>Select {label}</option>
-      {options.map(option => (
-        <option key={option} value={option}>{option}</option>
+      <option value="" disabled>
+        Select {label}
+      </option>
+      {options.map((option) => (
+        <option key={option} value={option}>
+          {option}
+        </option>
       ))}
     </select>
   </div>
@@ -50,21 +76,35 @@ function FertilizerRecPage() {
   // Ensure these exactly match the names used in your backend (after 'Soil_Type_' and 'Crop_Type_')
   const soilTypeOptions = ["Black", "Clayey", "Loamy", "Red", "Sandy"];
   const cropTypeOptions = [
-      "Barley", "Cotton", "Ground Nuts", "Maize", "Millets",
-      "Oil seeds", "Paddy", "Pulses", "Sugarcane", "Tobacco", "Wheat",
-      "coffee", "kidneybeans", "orange", "pomegranate", "rice", "watermelon" // Add others if your model uses them
+    "Barley",
+    "Cotton",
+    "Ground Nuts",
+    "Maize",
+    "Millets",
+    "Oil seeds",
+    "Paddy",
+    "Pulses",
+    "Sugarcane",
+    "Tobacco",
+    "Wheat",
+    "coffee",
+    "kidneybeans",
+    "orange",
+    "pomegranate",
+    "rice",
+    "watermelon", // Add others if your model uses them
   ];
 
   // State for form inputs
   const [formData, setFormData] = useState({
-    Temparature: '', // Match backend key 'Temparature'
-    Humidity: '',    // Match backend key 'Humidity'
-    Moisture: '',    // Match backend key 'Moisture'
-    Nitrogen: '',    // Match backend key 'Nitrogen'
-    Potassium: '',   // Match backend key 'Potassium'
-    Phosphorous: '', // Match backend key 'Phosphorous'
-    Soil_Type: '',   // Match backend key 'Soil_Type'
-    Crop_Type: '',   // Match backend key 'Crop_Type'
+    Temparature: "", // Match backend key 'Temparature'
+    Humidity: "", // Match backend key 'Humidity'
+    Moisture: "", // Match backend key 'Moisture'
+    Nitrogen: "", // Match backend key 'Nitrogen'
+    Potassium: "", // Match backend key 'Potassium'
+    Phosphorous: "", // Match backend key 'Phosphorous'
+    Soil_Type: "", // Match backend key 'Soil_Type'
+    Crop_Type: "", // Match backend key 'Crop_Type'
   });
 
   const [result, setResult] = useState(null);
@@ -98,17 +138,20 @@ function FertilizerRecPage() {
       Phosphorous: parseFloat(formData.Phosphorous),
     };
 
-
     try {
       // Call the backend API
-      const response = await axios.post('http://localhost:5000/recommend_fertilizer', payload);
+      // Replace the old URL with this:
+      const response = await axios.post(
+        `${API_BASE_URL}/recommend_fertilizer`,
+        payload
+      );
       setResult(response.data.recommended_fertilizer);
     } catch (err) {
       console.error("Fertilizer API Error:", err);
       if (err.response && err.response.data.error) {
         setError(err.response.data.error);
       } else {
-        setError('Recommendation failed. Could not connect to the server.');
+        setError("Recommendation failed. Could not connect to the server.");
       }
     } finally {
       setIsLoading(false);
@@ -123,7 +166,8 @@ function FertilizerRecPage() {
             Khaad Sujhaav — Fertilizer Recommendation
           </h2>
           <p className="mt-2 text-sm md:text-base text-gray-600">
-            Saral aur upyogi sujhaav — apne khet ke liye sahi khaad pata lagayein.
+            Saral aur upyogi sujhaav — apne khet ke liye sahi khaad pata
+            lagayein.
           </p>
         </header>
 
@@ -138,8 +182,12 @@ function FertilizerRecPage() {
               />
               <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent flex items-end p-4">
                 <div className="text-white">
-                  <h3 className="text-lg font-semibold">Smart, Simple, Local</h3>
-                  <p className="text-sm opacity-90">Inputs tailored for your crop and soil.</p>
+                  <h3 className="text-lg font-semibold">
+                    Smart, Simple, Local
+                  </h3>
+                  <p className="text-sm opacity-90">
+                    Inputs tailored for your crop and soil.
+                  </p>
                 </div>
               </div>
             </div>
@@ -151,7 +199,10 @@ function FertilizerRecPage() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-800">Fast Results</h4>
-                  <p className="text-sm text-gray-600">Fill basic soil & weather info to get a fertilizer suggestion instantly.</p>
+                  <p className="text-sm text-gray-600">
+                    Fill basic soil & weather info to get a fertilizer
+                    suggestion instantly.
+                  </p>
                 </div>
               </div>
 
@@ -161,18 +212,25 @@ function FertilizerRecPage() {
                 </div>
                 <div>
                   <h4 className="font-semibold text-gray-800">Farm Friendly</h4>
-                  <p className="text-sm text-gray-600">Clear labels and examples make it easy for farmers of all experience levels.</p>
+                  <p className="text-sm text-gray-600">
+                    Clear labels and examples make it easy for farmers of all
+                    experience levels.
+                  </p>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                 <div className="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
                   <p className="text-xs text-gray-500">Tip</p>
-                  <p className="text-sm font-medium text-gray-800">Measure moisture after irrigation for best accuracy.</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    Measure moisture after irrigation for best accuracy.
+                  </p>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-gray-100 shadow-sm">
                   <p className="text-xs text-gray-500">Note</p>
-                  <p className="text-sm font-medium text-gray-800">Use local soil type and crop type for correct suggestions.</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    Use local soil type and crop type for correct suggestions.
+                  </p>
                 </div>
               </div>
 
@@ -184,18 +242,67 @@ function FertilizerRecPage() {
           <div className="rounded-2xl bg-white/70 backdrop-blur-sm border border-gray-100 p-6 md:p-8 shadow-lg transform transition-all duration-300 hover:shadow-2xl">
             <form onSubmit={handleSubmit} className="space-y-6">
               <p className="text-gray-600">
-                Kripya apni khet ki jaankari bharein sahi khaad ka sujhaav paane ke liye.
+                Kripya apni khet ki jaankari bharein sahi khaad ka sujhaav paane
+                ke liye.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <InputField label="Temperature (°C)" name="Temparature" value={formData.Temparature} onChange={handleChange} placeholder="e.g., 26" />
-                <InputField label="Humidity (%)" name="Humidity" value={formData.Humidity} onChange={handleChange} placeholder="e.g., 52" />
-                <InputField label="Soil Moisture (%)" name="Moisture" value={formData.Moisture} onChange={handleChange} placeholder="e.g., 38" />
-                <InputField label="Nitrogen (N) Content" name="Nitrogen" value={formData.Nitrogen} onChange={handleChange} placeholder="e.g., 37" />
-                <InputField label="Potassium (K) Content" name="Potassium" value={formData.Potassium} onChange={handleChange} placeholder="e.g., 0" />
-                <InputField label="Phosphorous (P) Content" name="Phosphorous" value={formData.Phosphorous} onChange={handleChange} placeholder="e.g., 0" />
-                <SelectField label="Soil Type" name="Soil_Type" value={formData.Soil_Type} onChange={handleChange} options={soilTypeOptions} />
-                <SelectField label="Crop Type" name="Crop_Type" value={formData.Crop_Type} onChange={handleChange} options={cropTypeOptions} />
+                <InputField
+                  label="Temperature (°C)"
+                  name="Temparature"
+                  value={formData.Temparature}
+                  onChange={handleChange}
+                  placeholder="e.g., 26"
+                />
+                <InputField
+                  label="Humidity (%)"
+                  name="Humidity"
+                  value={formData.Humidity}
+                  onChange={handleChange}
+                  placeholder="e.g., 52"
+                />
+                <InputField
+                  label="Soil Moisture (%)"
+                  name="Moisture"
+                  value={formData.Moisture}
+                  onChange={handleChange}
+                  placeholder="e.g., 38"
+                />
+                <InputField
+                  label="Nitrogen (N) Content"
+                  name="Nitrogen"
+                  value={formData.Nitrogen}
+                  onChange={handleChange}
+                  placeholder="e.g., 37"
+                />
+                <InputField
+                  label="Potassium (K) Content"
+                  name="Potassium"
+                  value={formData.Potassium}
+                  onChange={handleChange}
+                  placeholder="e.g., 0"
+                />
+                <InputField
+                  label="Phosphorous (P) Content"
+                  name="Phosphorous"
+                  value={formData.Phosphorous}
+                  onChange={handleChange}
+                  placeholder="e.g., 0"
+                />
+                <SelectField
+                  label="Soil Type"
+                  name="Soil_Type"
+                  value={formData.Soil_Type}
+                  onChange={handleChange}
+                  options={soilTypeOptions}
+                />
+                <SelectField
+                  label="Crop Type"
+                  name="Crop_Type"
+                  value={formData.Crop_Type}
+                  onChange={handleChange}
+                  options={cropTypeOptions}
+                />
               </div>
 
               <button
@@ -231,8 +338,12 @@ function FertilizerRecPage() {
                     <LuFlaskConical className="text-2xl text-amber-700" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-700">Recommended Fertilizer</p>
-                    <p className="text-lg font-bold text-amber-700 capitalize">{result}</p>
+                    <p className="text-sm text-gray-700">
+                      Recommended Fertilizer
+                    </p>
+                    <p className="text-lg font-bold text-amber-700 capitalize">
+                      {result}
+                    </p>
                   </div>
                 </div>
               )}

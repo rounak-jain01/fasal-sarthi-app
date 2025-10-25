@@ -2,7 +2,7 @@
 pip install Flask
 
 # Aapke .h5 model ko load karne aur chalaane ke liye
-pip install tensorflow
+pip install tensorflow-cpu
 
 # Images ko process karne ke liye
 pip install Pillow numpy

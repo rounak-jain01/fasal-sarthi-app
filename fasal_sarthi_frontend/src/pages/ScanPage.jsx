@@ -13,6 +13,9 @@ import {
   LuCheck,
   LuCamera, // Naya Camera Icon
 } from "react-icons/lu";
+// Add this line below your imports
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // --- 1. Result Display Component (Refined) ---
 // Is component mein Scan Result aur Cure (ilaaj) donon hain
@@ -181,8 +184,9 @@ function ScanPage() {
     formData.append("file", selectedFile);
 
     try {
+      // Replace the old URL with this:
       const response = await axios.post(
-        "http://localhost:5000/predict_disease",
+        `${API_BASE_URL}/predict_disease`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -211,12 +215,10 @@ function ScanPage() {
     const prompt = `Meri fasal ko ${diseaseName} ho gaya hai. Kripya iska ilaaj (cure) aur rokthaam (prevention) ke upaay batao. Jawaab points mein dena.`;
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/sarthi_ai_chat",
-        {
-          message: prompt,
-        }
-      );
+      // Replace the old URL with this:
+      const response = await axios.post(`${API_BASE_URL}/sarthi_ai_chat`, {
+        message: prompt,
+      });
       setCure(response.data.response);
     } catch (err) {
       console.error(err);

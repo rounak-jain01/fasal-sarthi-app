@@ -1,12 +1,15 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useState, useContext, useEffect } from "react";
+import axios from "axios";
+// Add this line below your imports
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 // Create the context
 const WeatherContext = createContext();
 
 // Create a provider component
 export const WeatherProvider = ({ children }) => {
-  const [selectedCity, setSelectedCity] = useState('Bhopal'); // Default city
+  const [selectedCity, setSelectedCity] = useState("Bhopal"); // Default city
   const [weatherData, setWeatherData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -19,20 +22,21 @@ export const WeatherProvider = ({ children }) => {
     let payload;
     let isCoords = false;
 
-    if (typeof cityOrCoords === 'string') {
+    if (typeof cityOrCoords === "string") {
       payload = { city: cityOrCoords };
       setSelectedCity(cityOrCoords); // Update selected city name
     } else if (cityOrCoords && cityOrCoords.lat && cityOrCoords.lon) {
       payload = { lat: cityOrCoords.lat, lon: cityOrCoords.lon };
       isCoords = true;
     } else {
-      setError('Invalid input for fetching weather.');
+      setError("Invalid input for fetching weather.");
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await axios.post('http://localhost:5000/get_weather', payload);
+      // Replace the old URL with this:
+      const response = await axios.post(`${API_BASE_URL}/get_weather`, payload);
       setWeatherData(response.data);
       // If fetched via coords, update the city name from the response
       if (isCoords) {
@@ -40,8 +44,14 @@ export const WeatherProvider = ({ children }) => {
       }
     } catch (err) {
       console.error("Weather fetch error:", err);
-      const errorMessage = err.response?.data?.error || 'Failed to fetch weather data.';
-      setError(errorMessage.replace("city not found", "City not found. Check spelling."));
+      const errorMessage =
+        err.response?.data?.error || "Failed to fetch weather data.";
+      setError(
+        errorMessage.replace(
+          "city not found",
+          "City not found. Check spelling."
+        )
+      );
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +63,9 @@ export const WeatherProvider = ({ children }) => {
   }, []); // Empty dependency array ensures this runs only once on mount
 
   return (
-    <WeatherContext.Provider value={{ selectedCity, weatherData, isLoading, error, fetchWeather }}>
+    <WeatherContext.Provider
+      value={{ selectedCity, weatherData, isLoading, error, fetchWeather }}
+    >
       {children}
     </WeatherContext.Provider>
   );

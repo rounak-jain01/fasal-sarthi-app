@@ -9,21 +9,20 @@ from keras.applications import EfficientNetB3
 from keras.layers import Input, GlobalAveragePooling2D, Dense, Dropout
 from keras import Model
 from PIL import Image
-import requests  # Hum direct API call ke liye 'requests' use kar rahe hain
+import requests  #Direct API Calls for Gemini and Weather
 import json
 import joblib
 from datetime import datetime, timezone, timedelta
 import pandas as pd # For handling categorical features
 from sklearn.preprocessing import LabelEncoder # Although we load it, good to import
-# import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv() # Load environment variables from .env file like API keys
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# --- 1. MODEL BUILDING LOGIC (Aapka code) ---
+# --- 1. MODEL BUILDING LOGIC (Aapka code) --- 
 def create_model(num_classes=19, image_size=(300, 300)):
     base_model = EfficientNetB3(
         input_shape=(image_size[0], image_size[1], 3),
@@ -40,7 +39,7 @@ def create_model(num_classes=19, image_size=(300, 300)):
     model = Model(inputs=inputs, outputs=predictions)
     return model
 
-# --- 2. MODEL LOADING (Aapka code) ---
+# --- 2. MODEL LOADING ---
 MODEL_WEIGHTS_PATH = 'FasalSarthi_Full_Model.h5'
 IMAGE_SIZE = (300, 300)
 CLASS_NAMES = [
@@ -52,13 +51,39 @@ CLASS_NAMES = [
     'Tomato__Target_Spot', 'Tomato__Tomato_YellowLeaf__Curl_Virus', 
     'Tomato__Tomato_mosaic_virus', 'Tomato_healthy'
 ]
-print("Creating model structure...")
-model = create_model(num_classes=len(CLASS_NAMES), image_size=IMAGE_SIZE)
-print("Model structure created.")
-print(f"Loading weights from: {MODEL_WEIGHTS_PATH}")
-model.load_weights(MODEL_WEIGHTS_PATH)
-print("Model weights loaded successfully! Server is ready.")
+# print("Creating model structure...")
+# model = create_model(num_classes=len(CLASS_NAMES), image_size=IMAGE_SIZE)
+# print("Model structure created.")
+# print(f"Loading weights from: {MODEL_WEIGHTS_PATH}")
+# model.load_weights(MODEL_WEIGHTS_PATH)
+# print("Model weights loaded successfully! Server is ready.")
+# Global variable for the model, initially None
+disease_model = None
+model_loading_error = None # To store loading error
 
+# Function to load the model when needed
+def get_disease_model():
+    global disease_model, model_loading_error
+    # Agar model pehle se load ho chuka hai ya error aa chuka hai, toh wahi return karo
+    if disease_model is not None:
+        return disease_model
+    if model_loading_error is not None:
+         return None # Ya raise error
+
+    print("Attempting to load disease detection model (Lazy Load)...")
+    try:
+        # Load model structure and weights inside this function
+        disease_model = create_model(num_classes=len(CLASS_NAMES), image_size=IMAGE_SIZE)
+        disease_model.load_weights(MODEL_WEIGHTS_PATH)
+        print("Disease detection model loaded successfully ON DEMAND.")
+        return disease_model
+    except Exception as e:
+        print(f"CRITICAL ERROR loading disease model: {e}")
+        import traceback
+        traceback.print_exc()
+        model_loading_error = e # Store the error
+        disease_model = None # Ensure model is None on error
+        return None
 
 # --- 3. FLASK APP LOGIC ---
 app = Flask(__name__)
@@ -70,18 +95,22 @@ def home():
 
 @app.route('/predict_disease', methods=['POST'])
 def handle_prediction():
+    model = get_disease_model() # Call the function here
+    if model is None:
+         error_msg = str(model_loading_error) if model_loading_error else "Disease model could not be loaded."
+         return jsonify({"error": f"Model loading failed: {error_msg}"}), 503 # Service Unavailable
+
+
     if 'file' not in request.files:
-        print("DEBUG: 'file' key not found in request.files") # Add debug print
-        print(f"DEBUG: request.files keys: {list(request.files.keys())}") # See what keys ARE present
+        print("DEBUG: 'file' key not found in request.files") 
+        print(f"DEBUG: request.files keys: {list(request.files.keys())}") 
         return jsonify({"error": "No file part key found in form-data"}), 400
     
-    # if 'file' not in request.files:
-    #     return jsonify({"error": "No file part"}), 400
-    
+    # Get the file from the request
     file = request.files.get('file')
 
     if not file or file.filename == '':
-        print(f"DEBUG: file object invalid or no filename. file={file}") # Add debug print
+        print(f"DEBUG: file object invalid or no filename. file={file}")
         return jsonify({"error": "No selected file or file object invalid"}), 400
     
     try:
@@ -98,15 +127,16 @@ def handle_prediction():
             "predicted_disease": predicted_class_name,
             "confidence": f"{confidence * 100:.2f}%"
         })
+    
     except Exception as e:
         print(f"Prediction error: {e}")
         import traceback
-        traceback.print_exc() # Print full traceback for debugging
+        traceback.print_exc()
         return jsonify({"error": "Error processing image"}), 500
 
 
+''''--------------------------- CROP RECOMMENDATION MODEL -----------------------------------------'''
     
-
 # --- 4. CROP RECOMMENDATION MODEL LOADING ---
 CROP_MODEL_STACKING_PATH = 'best_stacking_model_final.joblib'
 CROP_SCALER_PATH = 'scaler_final.joblib'
@@ -154,7 +184,6 @@ try:
     print("Crop Recommendation (Stacking) model, scaler, and encoder loaded.")
 
 except Exception as e:
-    # ... (rest of error handling) ...
     crop_full_feature_names = []
 
 
