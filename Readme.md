@@ -156,10 +156,10 @@ Fasal Sarthi is an AI-powered web application designed to assist farmers by prov
 
 ## 🤝 Team
 
-* **Rounak Rai:** Project Lead & Backend Developer (AI Integration, API Endpoints)
-* **Anshul Singh:** Frontend & UI/UX Specialist (React Implementation, Tailwind CSS, Responsive Design)
-* **Priya Sharma:** Data Scientist & Model Trainer (Dataset Curation, Model Training - Disease Detection)
-* **Vijay Kumar:** Database & Cloud Deployment (Initial Cloud Setup, DB Concepts)
+* **Rounak Jain:** Project Lead & Backend Developer (AI Integration, API Endpoints)
+* **Shivam Kahar:** Frontend & UI/UX Specialist (React Implementation, Tailwind CSS, Responsive Design)
+* **Lakshya Saxena:** Data Scientist & Model Trainer (Dataset Curation, Model Training - Disease Detection)
+* **Priyani Rathod:** Database & Cloud Deployment (Initial Cloud Setup, DB Concepts)
 
 *(Adjust roles/contributions as needed)*
 
