@@ -22,25 +22,28 @@ load_dotenv() # Load environment variables from .env file like API keys
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+
+
 # --- 1. MODEL BUILDING LOGIC (Aapka code) --- 
-def create_model(num_classes=19, image_size=(300, 300)):
-    base_model = EfficientNetB3(
-        input_shape=(image_size[0], image_size[1], 3),
-        include_top=False,
-        weights=None
-    )
-    base_model.trainable = False
-    inputs = Input(shape=(image_size[0], image_size[1], 3))
-    x = base_model(inputs, training=False)
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(1024, activation='relu')(x)
-    x = Dropout(0.5)(x)
-    predictions = Dense(num_classes, activation='softmax')(x)
-    model = Model(inputs=inputs, outputs=predictions)
-    return model
+# def create_model(num_classes=19, image_size=(300, 300)):
+#     base_model = EfficientNetB3(
+#         input_shape=(image_size[0], image_size[1], 3),
+#         include_top=False,
+#         weights=None
+#     )
+#     base_model.trainable = False
+#     inputs = Input(shape=(image_size[0], image_size[1], 3))
+#     x = base_model(inputs, training=False)
+#     x = GlobalAveragePooling2D()(x)
+#     x = Dense(1024, activation='relu')(x)
+#     x = Dropout(0.5)(x)
+#     predictions = Dense(num_classes, activation='softmax')(x)
+#     model = Model(inputs=inputs, outputs=predictions)
+#     return model
 
 # --- 2. MODEL LOADING ---
-MODEL_WEIGHTS_PATH = 'FasalSarthi_Full_Model.h5'
+# MODEL_WEIGHTS_PATH = 'FasalSarthi_Full_Model.h5'
+TFLITE_MODEL_PATH = 'FasalSarthi_Full_Model.tflite'
 IMAGE_SIZE = (300, 300)
 CLASS_NAMES = [
     'Corn__Blight', 'Corn__Common_Rust', 'Corn___healthy', 'Corn__gray_Leaf_Spot', 
@@ -62,29 +65,30 @@ disease_model = None
 model_loading_error = None # To store loading error
 
 # Function to load the model when needed
-def get_disease_model():
-    global disease_model, model_loading_error
-    # Agar model pehle se load ho chuka hai ya error aa chuka hai, toh wahi return karo
-    if disease_model is not None:
-        return disease_model
-    if model_loading_error is not None:
-         return None # Ya raise error
+def get_disease_interpreter():
+    global disease_interpreter, model_loading_error
+    if disease_interpreter is not None: return disease_interpreter
+    if model_loading_error is not None: return None
 
-    print("Attempting to load disease detection model (Lazy Load)...")
+    print("Attempting to load TFLite model interpreter (Lazy Load)...")
     try:
-        # Load model structure and weights inside this function
-        disease_model = create_model(num_classes=len(CLASS_NAMES), image_size=IMAGE_SIZE)
-        disease_model.load_weights(MODEL_WEIGHTS_PATH)
-        print("Disease detection model loaded successfully ON DEMAND.")
-        return disease_model
+        # Use tf.lite.Interpreter (works for both tflite-runtime and full tensorflow)
+        disease_interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
+        disease_interpreter.allocate_tensors() # IMPORTANT: Allocate memory
+        print("✅ TFLite interpreter loaded successfully ON DEMAND.")
+        return disease_interpreter
+    except ValueError as e:
+         print(f"CRITICAL ERROR: Failed to load TFLite model '{TFLITE_MODEL_PATH}'. Corrupted or missing? Error: {e}")
+         model_loading_error = e
+         disease_interpreter = None
+         return None
     except Exception as e:
-        print(f"CRITICAL ERROR loading disease model: {e}")
+        print(f"CRITICAL ERROR loading TFLite interpreter: {e}")
         import traceback
         traceback.print_exc()
-        model_loading_error = e # Store the error
-        disease_model = None # Ensure model is None on error
+        model_loading_error = e
+        disease_interpreter = None
         return None
-
 # --- 3. FLASK APP LOGIC ---
 app = Flask(__name__)
 CORS(app)
@@ -95,45 +99,83 @@ def home():
 
 @app.route('/predict_disease', methods=['POST'])
 def handle_prediction():
-    model = get_disease_model() # Call the function here
-    if model is None:
+    # Get the interpreter
+    interpreter = get_disease_interpreter()
+    if interpreter is None:
          error_msg = str(model_loading_error) if model_loading_error else "Disease model could not be loaded."
-         return jsonify({"error": f"Model loading failed: {error_msg}"}), 503 # Service Unavailable
+         return jsonify({"error": f"Model loading failed: {error_msg}"}), 503
 
-
-    if 'file' not in request.files:
-        print("DEBUG: 'file' key not found in request.files") 
-        print(f"DEBUG: request.files keys: {list(request.files.keys())}") 
-        return jsonify({"error": "No file part key found in form-data"}), 400
-    
-    # Get the file from the request
-    file = request.files.get('file')
-
-    if not file or file.filename == '':
-        print(f"DEBUG: file object invalid or no filename. file={file}")
-        return jsonify({"error": "No selected file or file object invalid"}), 400
-    
+    # Get input/output details
     try:
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+    except Exception as e:
+         print(f"Error getting interpreter details: {e}")
+         return jsonify({"error": "Failed to get model input/output details."}), 500
+
+    # --- File handling (same as before) ---
+    if 'file' not in request.files: return jsonify({"error": "No file part key found"}), 400
+    file = request.files.get('file')
+    if not file or file.filename == '': return jsonify({"error": "No selected file"}), 400
+
+    try:
+        # --- Preprocessing (Ensure dtype and shape match model input) ---
         image_bytes = file.read()
         img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-        img = img.resize(IMAGE_SIZE)
+
+        # Get target shape from model details
+        input_shape = input_details[0]['shape'] # e.g., [1, 300, 300, 3]
+        target_height = input_shape[1]
+        target_width = input_shape[2]
+        img = img.resize((target_width, target_height))
+
         img_array = tf.keras.preprocessing.image.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
-        predictions = model.predict(img_array)
+
+        # Ensure input dtype matches
+        input_dtype = input_details[0]['dtype'] # e.g., np.float32 or np.uint8
+        img_array = img_array.astype(input_dtype)
+
+        # Handle normalization/quantization
+        # Check if the model expects input between 0-1, -1 to 1, or 0-255 (quantized)
+        input_scale, input_zero_point = input_details[0].get('quantization', (1.0, 0)) # Default for float models
+
+        if input_dtype == np.float32 and input_scale == 1.0 and input_zero_point == 0:
+             # Common case: Normalize float input to 0-1
+             img_array = img_array / 255.0
+        elif input_dtype == np.uint8:
+             # Quantized model - no normalization needed if input is already 0-255
+             pass # Assuming img_to_array gives 0-255
+        # Add other normalization logic if needed (e.g., /127.5 - 1.0 for -1 to 1)
+
+        # --- Prediction using TFLite Interpreter ---
+        interpreter.set_tensor(input_details[0]['index'], img_array)
+        interpreter.invoke() # Run inference
+        predictions = interpreter.get_tensor(output_details[0]['index'])
+
+        # Dequantize output if necessary
+        output_scale, output_zero_point = output_details[0].get('quantization', (1.0, 0))
+        if output_details[0]['dtype'] == np.uint8: # If output is quantized
+            predictions = (predictions.astype(np.float32) - output_zero_point) * output_scale
+
+        # --- Post-processing (same as before) ---
         predicted_class_index = np.argmax(predictions[0])
+        # Add safety check for index out of bounds
+        if predicted_class_index >= len(CLASS_NAMES):
+             print(f"ERROR: Predicted index {predicted_class_index} out of bounds for CLASS_NAMES (len {len(CLASS_NAMES)})")
+             return jsonify({"error": "Model prediction resulted in invalid class index."}), 500
         predicted_class_name = CLASS_NAMES[predicted_class_index]
-        confidence = float(np.max(predictions[0]))
-        return jsonify({ 
+        confidence = float(np.max(predictions[0])) # Note: Confidence might need adjustment after dequantization
+        return jsonify({
             "predicted_disease": predicted_class_name,
             "confidence": f"{confidence * 100:.2f}%"
         })
-    
+
     except Exception as e:
-        print(f"Prediction error: {e}")
+        print(f"Prediction error with TFLite model: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": "Error processing image"}), 500
-
+        return jsonify({"error": "Error processing image with TFLite model"}), 500
 
 ''''--------------------------- CROP RECOMMENDATION MODEL -----------------------------------------'''
     
