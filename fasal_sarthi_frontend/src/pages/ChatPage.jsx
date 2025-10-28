@@ -106,43 +106,60 @@ function ChatPage() {
 
     const userMessage = newMessage.trim();
 
-    // Add user message immediately
-    setChatHistory((prev) => [...prev, { role: "user", message: userMessage }]);
+    // Prepare history to send (exclude initial bot message and any previous 'thinking' states)
+    // Map roles for backend ('bot' -> 'model') - Backend now handles this mapping
+    const historyToSend = chatHistory
+        .filter(msg => msg.message !== '...thinking...') // Filter out thinking messages
+        // Exclude the very first bot message if you don't want it as context always
+        // .filter((msg, index) => index !== 0 || msg.role !== 'bot')
+        .map(msg => ({ role: msg.role, message: msg.message })); // Send original roles
+
+
+    // Add user message to UI immediately
+    const updatedUiHistory = [...chatHistory, { role: "user", message: userMessage }];
+    setChatHistory(updatedUiHistory);
     setNewMessage("");
     setIsLoading(true);
 
-    // Add bot thinking state
-    setChatHistory((prev) => [
-      ...prev,
-      { role: "bot", message: "...thinking..." },
-    ]);
+    // Add bot thinking state to UI
+    setChatHistory(prev => [...prev, { role: "bot", message: "...thinking..." }]);
+
 
     try {
-      // Replace the old URL with this:
+      // Send NEW message and the prepared HISTORY
       const response = await axios.post(`${API_BASE_URL}/sarthi_ai_chat`, {
         message: userMessage,
+        history: historyToSend, // <-- Send the history
       });
       const aiMessage = response.data.response;
 
-      // Replace thinking message with actual response
+      // Replace thinking message with actual response in UI
       setChatHistory((prev) => {
         const updatedHistory = [...prev];
-        updatedHistory[updatedHistory.length - 1] = {
-          role: "bot",
-          message: aiMessage,
-        };
+        // Find the last message (which should be 'thinking') and replace it
+        const lastIndex = updatedHistory.length - 1;
+        if (lastIndex >= 0 && updatedHistory[lastIndex].message === '...thinking...') {
+             updatedHistory[lastIndex] = { role: "bot", message: aiMessage };
+        } else {
+             // Fallback: just add the message if something went wrong
+             updatedHistory.push({ role: "bot", message: aiMessage });
+        }
         return updatedHistory;
       });
     } catch (error) {
       console.error("Chat API error:", error);
-      // Replace thinking message with error message
+      // Replace thinking message with error message in UI
       setChatHistory((prev) => {
         const updatedHistory = [...prev];
-        updatedHistory[updatedHistory.length - 1] = {
-          role: "bot",
-          message:
-            "Maaf kijiye, abhi kuch gadbad ho gayi hai. Kripya thodi der baad try karein.",
-        };
+        const lastIndex = updatedHistory.length - 1;
+         if (lastIndex >= 0 && updatedHistory[lastIndex].message === '...thinking...') {
+            updatedHistory[lastIndex] = {
+              role: "bot",
+              message: "माफ़ कीजिये, अभी कुछ गड़बड़ हो गयी है। कृपया थोड़ी देर बाद try करें।" // Hindi error
+            };
+         } else {
+              updatedHistory.push({ role: "bot", message: "माफ़ कीजिये..." }); // Fallback
+         }
         return updatedHistory;
       });
     } finally {
