@@ -6,10 +6,6 @@ import {
   LuUser,
   LuSend,
   LuLoader,
-  LuMenu,
-  LuHouse as LuHome,
-  LuUser as LuHelpCircle,
-  LuSettings,
 } from "react-icons/lu";
 // Add this line below your imports
 const API_BASE_URL =
@@ -79,7 +75,6 @@ function ChatPage() {
   ]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const chatEndRef = useRef(null); // For auto-scrolling
 
   // Prevent whole page from scrolling while this page is mounted

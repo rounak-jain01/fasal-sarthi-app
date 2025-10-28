@@ -324,7 +324,7 @@ function CropRecPage() {
     setError(null);
     setAiAdvice(null);
 
-    const prompt = `Mujhe ${result} ugane ke liye detailed step-by-step guide do jisse maximum profit ho. Ismein beej (seed selection), khet ki taiyari (land preparation), khaad (fertilizers), paani (irrigation), keetnashak (pesticides), aur katai (harvesting) ke baare mein batao. Jawaab points ya sections mein dena.`;
+    const prompt = `Mujhe ${result} ugane ke liye detailed step-by-step guide do jisse maximum profit ho. Ismein beej (seed selection), khet ki taiyari (land preparation), khaad (fertilizers), paani (irrigation), keetnashak (pesticides), aur katai (harvesting) ke baare mein batao. Jawaab points ya sections mein dena response only in hindi.`;
 
     try {
       // Replace the old URL with this:

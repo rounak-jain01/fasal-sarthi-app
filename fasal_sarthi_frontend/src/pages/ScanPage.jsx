@@ -212,7 +212,7 @@ function ScanPage() {
     // setError(null); // Keep previous scan errors if any
 
     const diseaseName = result.predicted_disease.replace(/_/g, " ");
-    const prompt = `Meri fasal ko ${diseaseName} ho gaya hai. Kripya iska ilaaj (cure) aur rokthaam (prevention) ke upaay batao. Jawaab points mein dena.`;
+    const prompt = `Meri fasal ko ${diseaseName} ho gaya hai. Kripya iska ilaaj (cure) aur rokthaam (prevention) ke upaay batao. Jawaab points mein dena response only in hindi.`;
 
     try {
       // Replace the old URL with this:
@@ -436,7 +436,7 @@ function ScanPage() {
                   onClick={handleGetCure}
                   className="w-full bg-linear-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md flex items-center justify-center transition-transform duration-200 hover:scale-105"
                 >
-                  <LuSparkles className="mr-2" /> Ilaaj Poochein for{" "}
+                  <LuSparkles className="mr-2" /> Ilaaj Poochein for{"" }
                   {result.predicted_disease.replace(/_/g, " ")}
                 </button>
               )}
