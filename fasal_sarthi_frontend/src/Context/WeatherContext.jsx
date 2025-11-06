@@ -49,7 +49,7 @@ export const WeatherProvider = ({ children }) => {
         setSelectedCity(response.data.city);
       }
     } catch (err) {
-      console.error("Weather fetch error:", err);
+      // console.error("Weather fetch error:", err);
       let errorMessage = "Failed to fetch weather data.";
       if (err.response?.status === 401) {
         errorMessage = "Please log in to fetch weather data.";
@@ -72,11 +72,11 @@ export const WeatherProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       // Agar user logged-in hai, tabhi weather fetch karo
-      console.log("User is logged in, fetching weather...");
+      // console.log("User is logged in, fetching weather...");
       fetchWeather(selectedCity);
     } else {
       // Agar user logged-out hai, toh kuch mat karo (aur error/data clear rakho)
-      console.log("User is logged out, not fetching weather.");
+      // console.log("User is logged out, not fetching weather.");
       setWeatherData(null);
       setError(null);
       setIsLoading(false);

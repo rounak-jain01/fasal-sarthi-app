@@ -257,5 +257,6 @@
   "register_password_hint": "Must be at least 6 characters long.",
   "register_button": "Create Account",
   "register_has_account": "Already have an account?",
-  "register_login_link": "Login"
+  "register_login_link": "Login",
+  "nav_logout": "Logout"
 }

@@ -266,5 +266,6 @@
   "register_password_hint": "कम से कम 6 अक्षर का होना चाहिए।",
   "register_button": "खाता बनाएँ",
   "register_has_account": "क्या आपका पहले से ही खाता है?",
-  "register_login_link": "लॉगिन करें"
+  "register_login_link": "लॉगिन करें",
+  "nav_logout": "लॉगआउट"
 }

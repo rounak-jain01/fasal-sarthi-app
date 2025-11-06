@@ -1,22 +1,29 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next'; // <-- 1. Naya import
+import React, { useEffect } from 'react'; // [--- FIX (1) ---] useEffect ko import karein
+import { Link, useLocation, useNavigate} from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useSupabaseClient } from '@supabase/auth-helpers-react';
+
 import {
-  LuX, // Close button
-  LuLayoutDashboard, LuScanLine, LuHeartPulse, LuBot, // Updated: LuHouse ki jagah LuHeartPulse
-  LuWheat, LuFlaskConical, LuCloudy, LuSettings,LuHouse as LuHome // <-- LuHome add kiya
+  LuX,
+  LuLayoutDashboard,
+  LuScanLine,
+  LuBot,
+  LuWheat,
+  LuFlaskConical,
+  LuCloudy,
+  LuHouse as LuHome,
+  LuLogOut,
 } from 'react-icons/lu';
 
 // Drawer Item Component (Ismein koi change nahi hai)
 const DrawerItem = ({ icon, children, to, onClick }) => {
   const location = useLocation();
-  // Update active check to handle '/' route specifically
   const isActive = (to === '/') ? location.pathname === to : location.pathname.startsWith(to);
 
   return (
     <Link
       to={to}
-      onClick={onClick} // To close drawer on click
+      onClick={onClick}
       className={`
         flex items-center p-3 my-1 rounded-lg cursor-pointer text-base
         transition-colors duration-200
@@ -32,9 +39,36 @@ const DrawerItem = ({ icon, children, to, onClick }) => {
   );
 };
 
-
 function AppDrawer({ isOpen, toggleDrawer }) {
-  const { t } = useTranslation(); // <-- 2. Hook ka istemaal karein
+  const { t } = useTranslation();
+  const supabaseClient = useSupabaseClient();
+  const navigate = useNavigate();
+
+  // [--- FIX (2): BACKGROUND SCROLL LOCK ---]
+  // Yeh hook body par scroll lock/unlock karega
+  useEffect(() => {
+    if (isOpen) {
+      // Drawer khula hai toh background scroll lock kar do
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Drawer band hai toh scroll waapis chalu kar do
+      document.body.style.overflow = 'unset';
+    }
+    
+    // Cleanup function: Jab component unmount ho, tab scroll reset kar do
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]); // Yeh effect tab chalega jab 'isOpen' badlega
+  // [--- END FIX ---]
+
+  // [--- LOGOUT FIX (3) ---]
+  // Logout function banayein
+  const handleLogout = async () => {
+    toggleDrawer(); // Drawer ko band karein
+    await supabaseClient.auth.signOut();
+    navigate('/login'); // User ko login page par bhej dein
+  };
 
   return (
     <>
@@ -42,10 +76,10 @@ function AppDrawer({ isOpen, toggleDrawer }) {
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
-        onClick={toggleDrawer} // Close drawer when clicking overlay
+        onClick={toggleDrawer}
       ></div>
 
-      {/* Drawer Panel (Translated) */}
+      {/* Drawer Panel */}
       <aside
         className={`
           fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-50
@@ -53,7 +87,7 @@ function AppDrawer({ isOpen, toggleDrawer }) {
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Drawer Header (Translated) */}
+        {/* Drawer Header (Ismein koi change nahi) */}
         <div className="p-5 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-bold text-green-700">{t('drawer_all_features')}</h2>
           <button
@@ -65,24 +99,22 @@ function AppDrawer({ isOpen, toggleDrawer }) {
           </button>
         </div>
 
-        {/* Navigation List (Translated) */}
-        <nav className="p-4 overflow-y-auto h-[calc(100vh-73px)]"> {/* Added scroll for many items */}
+        {/* Navigation List */}
+        {/* h-[calc(100vh-125px)] ko update kiya taaki neeche switcher ke liye jagah ban sake */}
+        <nav className="p-4 overflow-y-auto h-[calc(100vh-125px)]">
           <ul>
-            {/* 3. Sabhi hardcoded text ko t() function se translate karein */}
             <DrawerItem icon={<LuHome />} to="/" onClick={toggleDrawer}>{t('nav_home_landing')}</DrawerItem>
             <DrawerItem icon={<LuLayoutDashboard />} to="/dashboard" onClick={toggleDrawer}>{t('nav_dashboard')}</DrawerItem>
             <DrawerItem icon={<LuScanLine />} to="/scan" onClick={toggleDrawer}>{t('nav_scan_crop')}</DrawerItem>
-            {/* <DrawerItem icon={<LuHeartPulse />} to="/my-crops" onClick={toggleDrawer}>{t('nav_my_crops')}</DrawerItem> */}
             <DrawerItem icon={<LuWheat />} to="/crop-recommendation" onClick={toggleDrawer}>{t('nav_recommend_crop')}</DrawerItem>
             <DrawerItem icon={<LuFlaskConical />} to="/fertilizer-advice" onClick={toggleDrawer}>{t('nav_recommend_fertilizer')}</DrawerItem>
             <DrawerItem icon={<LuCloudy />} to="/weather" onClick={toggleDrawer}>{t('nav_weather')}</DrawerItem>
             <DrawerItem icon={<LuBot />} to="/chat" onClick={toggleDrawer}>{t('nav_chat')}</DrawerItem>
-            
-            {/* Divider */}
-            <li className="mt-6 border-t border-gray-200"></li>
-            <DrawerItem icon={<LuSettings />} to="/settings" onClick={toggleDrawer}>{t('nav_settings')}</DrawerItem>
+            <DrawerItem icon={<LuLogOut />} to="#" onClick={handleLogout}>{t('nav_logout')}</DrawerItem>
           </ul>
         </nav>
+
+        
       </aside>
     </>
   );

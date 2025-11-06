@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom'; // Button ko link karne ke liye
 import { useTranslation } from 'react-i18next';
 import { useWeather } from '../Context/WeatherContext';
+import { useUserProfile } from '../Context/UserProvider';
 import { 
   LuScanLine, 
   LuCloudy, 
@@ -29,7 +30,9 @@ const CommunityPost = ({ name, time, content, imageUrl }) => (
 function Dashboard() {
   const { weatherData, isLoading, error, selectedCity } = useWeather();
   const { t } = useTranslation();
-  const displayName = 'Farmer';
+  const { profile } = useUserProfile();
+  const displayName = (profile && profile.full_name) ? profile.full_name : 'Farmer';
+  // [--- END FIX ---]
   return (
     // 'pb-20' (padding-bottom: 20) mobile par BottomNav ke liye jagah banayega
     <main className="flex-1 p-4 md:p-8 bg-gray-50 overflow-y-auto pb-20 md:pb-8">

@@ -13,6 +13,9 @@ import { supabaseClient } from './lib/supabaseClient';
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
 // [--- END FIX ---]
 
+import { UserProvider } from './Context/UserProvider';
+
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <Suspense fallback={
@@ -25,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         {/* Ab hum imported client ko yahaan pass kar rahe hain */}
         <SessionContextProvider supabaseClient={supabaseClient}>
           <WeatherProvider>
-            <App />
+            <UserProvider>
+              <App />
+            </UserProvider>
           </WeatherProvider>
         </SessionContextProvider>
         {/* [--- END FIX ---] */}
