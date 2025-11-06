@@ -246,5 +246,25 @@
   "team_desc_4": "क्लाउड इंफ्रास्ट्रक्चर, डेटाबेस सेटअप का प्रबंधन किया, और सहज एप्लिकेशन डिप्लॉयमेंट सुनिश्चित किया।",
 
   "drawer_all_features": "सभी सुविधाएँ",
-  "nav_home_landing": "होम (लैंडिंग)"
+  "nav_home_landing": "होम (लैंडिंग)",
+  "login_welcome_back": "वापसी पर स्वागत है, किसान!",
+  "login_title": "अपने खाते में लॉगिन करें",
+  "login_error_invalid_credentials": "अमान्य ईमेल या पासवर्ड। कृपया पुनः प्रयास करें।",
+  "login_error_network": "नेटवर्क त्रुटि। कृपया अपना कनेक्शन जांचें।",
+  "login_email_label": "ईमेल पता",
+  "login_email_placeholder": "you@example.com",
+  "login_password_label": "पासवर्ड",
+  "login_password_placeholder": "अपना पासवर्ड डाले",
+  "login_button": "लॉगिन करें",
+  "login_no_account": "क्या आपका खाता नहीं है?",
+  "login_register_link": "साइन अप करें",
+  "login_back_home": "वापस होम पर जाएँ",
+  "register_create_account": "एक नया खाता बनाएँ",
+  "register_title": "शुरू करें",
+  "register_success_message": "सफलता! कृपया सत्यापन लिंक के लिए अपना ईमेल जांचें।",
+  "register_password_placeholder": "कम से कम 6 अक्षर",
+  "register_password_hint": "कम से कम 6 अक्षर का होना चाहिए।",
+  "register_button": "खाता बनाएँ",
+  "register_has_account": "क्या आपका पहले से ही खाता है?",
+  "register_login_link": "लॉगिन करें"
 }

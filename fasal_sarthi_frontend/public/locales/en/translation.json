@@ -2,10 +2,8 @@
   "header_title": "Fasal Sarthi",
   "header_tagline": "Your Agricultural AI Assistant",
   "welcomeMessage": "Namaste, {{name}}!",
-
   "english_language": "English",
   "hindi_language": "हिंदी",
-
   "nav_dashboard": "Dashboard",
   "nav_scan_crop": "Scan Crop",
   "nav_my_crops": "My Crops",
@@ -15,7 +13,6 @@
   "nav_chat": "Sarthi AI",
   "nav_settings": "Settings",
   "nav_more": "More",
-
   "home_hero_title": "Empowering Farmers with AI-Driven Insights",
   "home_hero_description": "Fasal Sarthi provides smart solutions for crop disease detection, personalized recommendations, real-time weather, and an AI chatbot.",
   "home_feature1_title": "Disease Detection",
@@ -33,7 +30,6 @@
   "dashboard_soil_nutrients": "Soil Nutrients:",
   "dashboard_upcoming_tasks": "Upcoming Tasks:",
   "footer_rights": "© 2024 Fasal Sarthi. All rights reserved.",
-
   "scan_crop_title": "Scan Crop for Disease",
   "scan_result_title": "Scan Result",
   "predicted_disease": "Predicted Disease:",
@@ -59,7 +55,6 @@
   "scan_placeholder_desc": "Upload/capture a photo on the left and press \"Scan Now\". Our AI will analyze your crop and show the result here.",
   "scan_ask_cure_for": "Ask for cure for",
   "scan_cure_prompt": "I have {{diseaseName}} in my crop. Please provide a detailed cure and prevention guide. Respond in points or sections.",
-
   "crop_rec_page_title": "Crop Recommendation",
   "crop_rec_select_placeholder": "Select...",
   "crop_rec_soil_nutrients_title": "Soil Nutrients",
@@ -217,7 +212,6 @@
   "weather_desc_mist": "Mist",
   "weather_desc_haze": "Haze",
   "weather_desc_smoke": "Smoke",
-
   "nav_login": "Login",
   "home_core_services": "Core Services",
   "home_analyze_crop_link": "Analyze Crop",
@@ -241,7 +235,27 @@
   "team_name_4": "Priyani Rathod",
   "team_role_4": "Database & Cloud Deployment",
   "team_desc_4": "Managed cloud infrastructure, database setup, and ensured seamless application deployment.",
-
   "drawer_all_features": "All Features",
-  "nav_home_landing": "Home (Landing)"
+  "nav_home_landing": "Home (Landing)",
+
+  "login_welcome_back": "Welcome back, Farmer!",
+  "login_title": "Login to your Account",
+  "login_error_invalid_credentials": "Invalid email or password. Please try again.",
+  "login_error_network": "Network error. Please check your connection.",
+  "login_email_label": "Email Address",
+  "login_email_placeholder": "you@example.com",
+  "login_password_label": "Password",
+  "login_password_placeholder": "Enter your password",
+  "login_button": "Login",
+  "login_no_account": "Don't have an account?",
+  "login_register_link": "Sign up",
+  "login_back_home": "Back to Home",
+  "register_create_account": "Create a new account",
+  "register_title": "Get Started",
+  "register_success_message": "Success! Please check your email for a verification link.",
+  "register_password_placeholder": "At least 6 characters",
+  "register_password_hint": "Must be at least 6 characters long.",
+  "register_button": "Create Account",
+  "register_has_account": "Already have an account?",
+  "register_login_link": "Login"
 }

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, Fragment } from "react";
 import { useTranslation } from "react-i18next"; // <-- 1. Naya import
 import { useDropzone } from "react-dropzone";
-import axios from "axios";
+import axios from "../api/axiosInstance";
 import ReactMarkdown from "react-markdown";
 import {
   LuCloudUpload,

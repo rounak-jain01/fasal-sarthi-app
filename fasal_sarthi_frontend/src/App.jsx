@@ -13,43 +13,36 @@ import LandingPage from './pages/LandingPage';
 import Dashboard from './pages/Dashboard';
 import ScanPage from './pages/ScanPage';
 import ChatPage from './pages/ChatPage';
-import MyCropsPage from './pages/MyCropsPage';
+// import MyCropsPage from './pages/MyCropsPage'; // Yeh aapne comment kiya hua tha
 import CropRecPage from './pages/CropRecPage';
 import FertilizerRecPage from './pages/FertilizerRecPage';
 import WeatherPage from './pages/WeatherPage';
+
+// [--- FIX (1) ---]
+// Naye Login, Register, aur ProtectedRoute components ko import karein
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ProtectedRoute from './components/ProtectedRoute'; // Hamara naya gatekeeper
+// [--- END FIX ---]
 
 // --- Helper Components ---
 import { LuLoader } from 'react-icons/lu'; // For loading indicator
 
 // --- Main App Layout Component ---
-// This component wraps pages that need the Sidebar, Header, BottomNav structure
+// (Is component mein koi change nahi hai)
 const MainAppLayout = ({ children }) => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // State to manage mobile drawer
-
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const toggleDrawer = () => {
     setIsDrawerOpen(!isDrawerOpen);
   };
-
   return (
-    // Main flex container (column on mobile, row on desktop)
-    <div className="flex flex-col md:flex-row min-h-screen bg-white relative" 
-    
-    >
-      {/* Sidebar - Visible only on medium screens and up */}
+    <div className="flex flex-col md:flex-row min-h-screen bg-white relative">
       <Sidebar />
-      {/* App Drawer - Visible only on small screens, controlled by state */}
       <AppDrawer isOpen={isDrawerOpen} toggleDrawer={toggleDrawer} />
-
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header - Always visible */}
         <Header />
-        {/* Page Content - Passed as children, takes remaining space */}
         {children}
       </div>
-
-      {/* Bottom Navigation - Visible only on small screens */}
-      {/* Pass the toggle function to the "More" button */}
       <BottomNav toggleDrawer={toggleDrawer} />
     </div>
   );
@@ -57,15 +50,12 @@ const MainAppLayout = ({ children }) => {
 
 // --- App Component (Main Router Setup) ---
 function App() {
-  // The Router itself is usually in main.jsx, wrapping the <App /> component.
-  // App component defines the Routes.
   return (
       <Routes>
-        {/* --- Public Routes --- */}
-        {/* Landing Page (Home) */}
+        {/* --- Public Routes (Koi bhi dekh sakta hai) --- */}
         <Route path="/" element={<LandingPage />} />
-
-        {/* About Page (Example of a simple public page) */}
+        <Route path="/login" element={<LoginPage />} />       {/* <-- FIX (2): Naya route */}
+        <Route path="/register" element={<RegisterPage />} />   {/* <-- FIX (3): Naya route */}
         <Route path="/about" element={
             <div className="flex flex-col min-h-screen bg-gray-50 items-center justify-center p-8">
               <h2 className="text-3xl font-bold mb-4">About Fasal Sarthi</h2>
@@ -75,89 +65,86 @@ function App() {
         } />
 
 
-        {/* --- Public Routes (No Auth Required) --- */}
-        {/* Dashboard */}
+        {/* --- Protected Routes (Sirf Login ke baad dikhenge) --- */}
+        
+        {/* [--- FIX (4) ---] */}
+        {/* Humne Dashboard ko <ProtectedRoute> se wrap kar diya hai */}
         <Route
           path="/dashboard"
           element={
-            <MainAppLayout>
-              <Dashboard />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <Dashboard />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
 
-        {/* Scan Crop Page */}
+        {/* Baaki sabhi pages ko bhi Protect kar dein */}
         <Route
           path="/scan"
           element={
-            <MainAppLayout>
-              <ScanPage />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <ScanPage />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
-
-        {/* Chat Page */}
         <Route
           path="/chat"
           element={
-            <MainAppLayout>
-              <ChatPage />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <ChatPage />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
-
-        {/* My Crops Page */}
-        <Route
-          path="/my-crops"
-          element={
-            <MainAppLayout>
-              {/* <MyCropsPage /> */}
-            </MainAppLayout>
-          }
-        />
-
-        {/* Crop Recommendation Page */}
         <Route
           path="/crop-recommendation"
           element={
-            <MainAppLayout>
-              <CropRecPage />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <CropRecPage />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
-
-        {/* Fertilizer Recommendation Page */}
         <Route
           path="/fertilizer-advice"
           element={
-            <MainAppLayout>
-              <FertilizerRecPage />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <FertilizerRecPage />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
-
-        {/* Weather Page */}
         <Route
           path="/weather"
           element={
-            <MainAppLayout>
-              <WeatherPage />
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <WeatherPage />
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
-
-        {/* Settings Page (Placeholder) */}
         <Route
           path="/settings"
           element={
-            <MainAppLayout>
-              <div className="flex-1 p-8 text-center text-gray-600">Settings Page (Coming Soon!)</div>
-            </MainAppLayout>
+            <ProtectedRoute>
+              <MainAppLayout>
+                <div className="flex-1 p-8 text-center text-gray-600">Settings Page (Coming Soon!)</div>
+              </MainAppLayout>
+            </ProtectedRoute>
           }
         />
+        {/* [--- END FIX ---] */}
+
 
         {/* --- Catch-all Route --- */}
-        {/* Redirects any unknown URL back to the landing page */}
         <Route path="*" element={<Navigate to="/" replace />} />
 
       </Routes>

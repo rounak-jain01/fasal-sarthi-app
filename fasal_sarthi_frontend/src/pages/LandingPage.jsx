@@ -7,6 +7,9 @@ import {
   LuCloudRain, LuMessageSquare, LuUsers,
   LuGithub, LuLanguages // <-- 3. Language icon import karein
 } from 'react-icons/lu';
+// [--- SUPABASE AUTH ADDITION (1) ---]
+// Purana AuthContext hook hatayein aur yeh naye Supabase hooks import karein
+import { useUser } from '@supabase/auth-helpers-react';
 
 // Temporary developer images (Ismein koi change nahi)
 const developerImages = [
@@ -19,7 +22,12 @@ const developerImages = [
 function LandingPage() {
   // --- 4. Hooks ko initialize karein ---
   const { t, i18n } = useTranslation();
-  // const { currentUser } = useAuth();
+
+  // [--- SUPABASE AUTH ADDITION (2) ---]
+  // useUser() hook se current user ki jaankari lein
+  // Agar user login hai, toh 'user' object mein data hoga, varna yeh 'null' hoga
+  const user = useUser();
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // const getStartedLink = currentUser ? '/dashboard' : '/login';
@@ -69,12 +77,25 @@ function LandingPage() {
             )}
           </div>
           
-          {/* Login/Dashboard Link */}
-          {/* {currentUser ? (
-            <Link to="/dashboard" className="text-green-600 hover:text-green-800 text-sm font-semibold">{t('nav_dashboard')}</Link>
+          {/* [--- SUPABASE AUTH ADDITION (3) ---] */}
+          {/* Yeh raha aapka fix: Ab hum 'user' variable se check karenge */}
+          {user ? (
+            // Agar user login hai, toh "Dashboard" dikhayein
+            <Link 
+              to="/dashboard" 
+              className="text-green-600 hover:text-green-800 text-sm font-semibold"
+            >
+              {t('nav_dashboard')}
+            </Link>
           ) : (
-            <Link to="/login" className="text-green-600 hover:text-green-800 text-sm font-semibold">{t('nav_login')}</Link>
-          )} */}
+            // Agar user login nahi hai, toh "Login" dikhayein
+            <Link 
+              to="/login" 
+              className="text-green-600 hover:text-green-800 text-sm font-semibold"
+            >
+              {t('nav_login')}
+            </Link>
+          )}
 
         </div>
       </nav>
@@ -82,6 +103,7 @@ function LandingPage() {
       {/* --- 6. Baaki saare text ko t() se replace karein --- */}
 
       {/* Hero Section */}
+      {/* Hero Section (Get Started Button ko update kiya gaya) */}
       <section className="relative bg-linear-to-r from-green-600 to-emerald-700 text-white py-20 md:py-32 text-center overflow-hidden">
         {/* ... (Background blobs) ... */}
         <div className="relative z-10 max-w-4xl mx-auto px-4">
@@ -92,9 +114,16 @@ function LandingPage() {
             {t('home_hero_description')}
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link to='/dashboard' className="bg-white text-green-700 hover:bg-gray-100 font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 w-full sm:w-auto">
+            
+            {/* [--- SUPABASE AUTH ADDITION (4) ---] */}
+            {/* Get Started button ko bhi smart bana diya */}
+            <Link 
+              to={user ? '/dashboard' : '/register'} // Agar login hai toh dashboard, varna register par
+              className="bg-white text-green-700 hover:bg-gray-100 font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 w-full sm:w-auto"
+            >
               {t('get_started_button')}
             </Link>
+
             <Link to="/about" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-green-700 font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-300 w-full sm:w-auto">
               {t('learn_more_button')}
             </Link>

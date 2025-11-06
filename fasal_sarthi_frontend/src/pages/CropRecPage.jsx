@@ -1,7 +1,7 @@
 // src/pages/CropRecPage.jsx
 import React, { useState } from "react";
 import { useTranslation } from 'react-i18next'; // <-- Naya import
-import axios from "axios";
+import axios from "../api/axiosInstance";
 import i18n from '../i18n'; // <-- i18n import karein
 
 import ReactMarkdown from "react-markdown"; // For formatting AI advice

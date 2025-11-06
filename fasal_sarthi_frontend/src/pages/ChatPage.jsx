@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
+import axios from "../api/axiosInstance";
 import ReactMarkdown from "react-markdown";
 import { useTranslation } from 'react-i18next'; // <-- Naya Import
 import {

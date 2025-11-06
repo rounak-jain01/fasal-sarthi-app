@@ -1,7 +1,7 @@
 // src/pages/FertilizerRecPage.jsx
 import React, { useState } from "react";
 import { useTranslation } from 'react-i18next'; // <-- Naya import
-import axios from "axios";
+import axios from "../api/axiosInstance";
 import {
   LuFlaskConical,
   LuLoader,

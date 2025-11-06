@@ -2,7 +2,7 @@ import os
 import io
 import threading
 import numpy as np
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from keras import layers, models, applications
 import tensorflow as tf
@@ -17,13 +17,29 @@ from datetime import datetime, timezone, timedelta
 import pandas as pd # For handling categorical features
 from sklearn.preprocessing import LabelEncoder # Although we load it, good to import
 from dotenv import load_dotenv
+# Supabase library aur decorator ke liye imports
+from supabase import create_client, Client
+from functools import wraps
 
 load_dotenv() # Load environment variables from .env file like API keys
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
+# Supabase Client ko initialize karna (service_role key se)
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
+supabase: Client = None
 
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    print("CRITICAL ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY not set in .env!")
+else:
+    try:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        print("✅ Supabase service client initialized successfully.")
+    except Exception as e:
+        print(f"CRITICAL ERROR: Failed to initialize Supabase client: {e}")
+# [--- END SUPABASE ---]
 
 # --- 1. MODEL BUILDING LOGIC (Aapka code) --- 
 # def create_model(num_classes=19, image_size=(300, 300)):
@@ -96,11 +112,60 @@ def get_disease_interpreter():
 app = Flask(__name__)
 CORS(app)
 
+
+
+# [--- SUPABASE AUTH ADDITION (4) ---]
+# Yeh hamara "Gatekeeper" (Decorator) hai.
+# Yeh har protected route se pehle chalega.
+def token_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Check karein ki Supabase client chal raha hai
+        if not supabase:
+            return jsonify({"error": "Authentication system is not configured."}), 503
+
+        # 1. Request Header se 'Authorization' token nikaalein
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization header missing."}), 401
+
+        # Header format "Bearer <token>" hota hai
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return jsonify({"error": "Invalid Authorization header format. Must be 'Bearer <token>'."}), 401
+        
+        jwt_token = parts[1]
+
+        # 2. Token ko Supabase se verify karein
+        try:
+            # 'get_user' function token ko verify karta hai.
+            # Agar token galat ya expired hoga, toh yeh error dega.
+            user_response = supabase.auth.get_user(jwt_token)
+            user = user_response.user
+            
+            if not user:
+                return jsonify({"error": "Invalid or expired token."}), 401
+            
+            # User ki info ko 'g' (global context) mein save kar dein
+            g.user = user
+            # print(f"Auth successful for user: {user.id}")
+
+        except Exception as e:
+            print(f"Token verification error: {e}")
+            return jsonify({"error": "Token verification failed. Invalid or expired token."}), 401
+        
+        # 3. Sab theek hai! Route ko aage badhne dein
+        return f(*args, **kwargs)
+    return decorated_function
+# [--- END SUPABASE ---]
+
+
 @app.route('/', methods=['GET'])
 def home():
     return "Fasal Sarthi Backend Server is running!"
 
 @app.route('/predict_disease', methods=['POST'])
+@token_required
 def handle_prediction():
     # Get the interpreter
     interpreter = get_disease_interpreter()
@@ -234,6 +299,7 @@ except Exception as e:
 
 # --- FINAL UPDATE: CROP RECOMMENDATION ENDPOINT (/recommend_crop) ---
 @app.route('/recommend_crop', methods=['POST'])
+@token_required
 # @token_required
 def handle_crop_recommendation():
     if not crop_model_stacking or not crop_scaler or not crop_encoder_final or len(CROP_FULL_FEATURE_NAMES) != 25: # Check for 25
@@ -332,6 +398,7 @@ except Exception as e:
 
 # --- 9. NEW FERTILIZER RECOMMENDATION ENDPOINT ---
 @app.route('/recommend_fertilizer', methods=['POST'])
+@token_required
 def handle_fertilizer_recommendation():
     if not fert_model or not fert_model_columns or not fert_encoder:
         return jsonify({"error": "Fertilizer Recommendation model is not loaded."}), 500
@@ -427,6 +494,7 @@ print("Gemini AI Chatbot (Direct API) is ready.")
 
 # --- CHATBOT ENDPOINT (Direct API Call) ---
 @app.route('/sarthi_ai_chat', methods=['POST'])
+@token_required
 def handle_chat():
     if not GOOGLE_API_KEY: return jsonify({"error": "Chatbot API key not configured."}), 503
 
@@ -505,6 +573,7 @@ OWM_API_URL = "https://api.openweathermap.org/data/2.5/weather"
 # --- 7. NAYA WEATHER ENDPOINT ---
 # --- 7. NAYA WEATHER ENDPOINT (Updated for Lat/Lon) ---
 @app.route('/get_weather', methods=['POST'])
+@token_required
 def handle_get_weather():
     data = request.json
     city = data.get('city')

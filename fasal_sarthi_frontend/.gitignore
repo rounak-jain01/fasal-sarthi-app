@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 *.fasalsarthi-4dcf5-firebase-adminsdk-fbsvc-*.json
+.env
+.env.*
