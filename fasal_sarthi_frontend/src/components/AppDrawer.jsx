@@ -1,15 +1,17 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next'; // <-- 1. Naya import
 import {
   LuX, // Close button
-  LuLayoutDashboard, LuScanLine, LuHouse, LuBot,
-  LuWheat, LuFlaskConical, LuCloudy, LuSettings // All features
+  LuLayoutDashboard, LuScanLine, LuHeartPulse, LuBot, // Updated: LuHouse ki jagah LuHeartPulse
+  LuWheat, LuFlaskConical, LuCloudy, LuSettings,LuHouse as LuHome // <-- LuHome add kiya
 } from 'react-icons/lu';
 
-// Drawer Item Component
+// Drawer Item Component (Ismein koi change nahi hai)
 const DrawerItem = ({ icon, children, to, onClick }) => {
   const location = useLocation();
-  const isActive = location.pathname === to;
+  // Update active check to handle '/' route specifically
+  const isActive = (to === '/') ? location.pathname === to : location.pathname.startsWith(to);
 
   return (
     <Link
@@ -32,16 +34,18 @@ const DrawerItem = ({ icon, children, to, onClick }) => {
 
 
 function AppDrawer({ isOpen, toggleDrawer }) {
+  const { t } = useTranslation(); // <-- 2. Hook ka istemaal karein
+
   return (
     <>
-      {/* Overlay (dims background when drawer is open) */}
+      {/* Overlay (Ismein koi change nahi) */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 md:hidden ${isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
         onClick={toggleDrawer} // Close drawer when clicking overlay
       ></div>
 
-      {/* Drawer Panel */}
+      {/* Drawer Panel (Translated) */}
       <aside
         className={`
           fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-50
@@ -49,9 +53,9 @@ function AppDrawer({ isOpen, toggleDrawer }) {
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
       >
-        {/* Drawer Header */}
+        {/* Drawer Header (Translated) */}
         <div className="p-5 border-b border-gray-200 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-green-700">All Features</h2>
+          <h2 className="text-xl font-bold text-green-700">{t('drawer_all_features')}</h2>
           <button
             onClick={toggleDrawer}
             className="text-gray-500 hover:text-gray-800 p-1"
@@ -61,21 +65,22 @@ function AppDrawer({ isOpen, toggleDrawer }) {
           </button>
         </div>
 
-        {/* Navigation List */}
-        <nav className="p-4">
+        {/* Navigation List (Translated) */}
+        <nav className="p-4 overflow-y-auto h-[calc(100vh-73px)]"> {/* Added scroll for many items */}
           <ul>
-            <DrawerItem icon={<LuHouse />} to="/" onClick={toggleDrawer}>Home</DrawerItem>
-            <DrawerItem icon={<LuLayoutDashboard />} to="/dashboard" onClick={toggleDrawer}>Dashboard</DrawerItem>
-            <DrawerItem icon={<LuScanLine />} to="/scan" onClick={toggleDrawer}>Scan Crop</DrawerItem>
-            {/* <DrawerItem icon={<LuHeartPulse />} to="/my-crops" onClick={toggleDrawer}>My Crops</DrawerItem> */}
-            <DrawerItem icon={<LuWheat />} to="/crop-recommendation" onClick={toggleDrawer}>Crop Recommendation</DrawerItem>
-            <DrawerItem icon={<LuFlaskConical />} to="/fertilizer-advice" onClick={toggleDrawer}>Fertilizer Advice</DrawerItem>
-            <DrawerItem icon={<LuCloudy />} to="/weather" onClick={toggleDrawer}>Weather</DrawerItem>
-            <DrawerItem icon={<LuBot />} to="/chat" onClick={toggleDrawer}>Sarthi AI Chatbot</DrawerItem>
+            {/* 3. Sabhi hardcoded text ko t() function se translate karein */}
+            <DrawerItem icon={<LuHome />} to="/" onClick={toggleDrawer}>{t('nav_home_landing')}</DrawerItem>
+            <DrawerItem icon={<LuLayoutDashboard />} to="/dashboard" onClick={toggleDrawer}>{t('nav_dashboard')}</DrawerItem>
+            <DrawerItem icon={<LuScanLine />} to="/scan" onClick={toggleDrawer}>{t('nav_scan_crop')}</DrawerItem>
+            {/* <DrawerItem icon={<LuHeartPulse />} to="/my-crops" onClick={toggleDrawer}>{t('nav_my_crops')}</DrawerItem> */}
+            <DrawerItem icon={<LuWheat />} to="/crop-recommendation" onClick={toggleDrawer}>{t('nav_recommend_crop')}</DrawerItem>
+            <DrawerItem icon={<LuFlaskConical />} to="/fertilizer-advice" onClick={toggleDrawer}>{t('nav_recommend_fertilizer')}</DrawerItem>
+            <DrawerItem icon={<LuCloudy />} to="/weather" onClick={toggleDrawer}>{t('nav_weather')}</DrawerItem>
+            <DrawerItem icon={<LuBot />} to="/chat" onClick={toggleDrawer}>{t('nav_chat')}</DrawerItem>
+            
             {/* Divider */}
             <li className="mt-6 border-t border-gray-200"></li>
-            <DrawerItem icon={<LuSettings />} to="/settings" onClick={toggleDrawer}>Settings</DrawerItem>
-            {/* Add Logout or other items here */}
+            <DrawerItem icon={<LuSettings />} to="/settings" onClick={toggleDrawer}>{t('nav_settings')}</DrawerItem>
           </ul>
         </nav>
       </aside>

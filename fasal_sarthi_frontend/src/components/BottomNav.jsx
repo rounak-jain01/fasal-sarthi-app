@@ -1,20 +1,20 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LuLayoutDashboard, LuScanLine, LuWheat, LuMenu } from 'react-icons/lu'; // Use LuMenu for 'More'
+import { useTranslation } from 'react-i18next'; // <-- 1. Naya import
+import { LuLayoutDashboard, LuScanLine, LuWheat, LuMenu } from 'react-icons/lu';
 
-// NavButton Component (Keep this as is or slightly adjust styling if needed)
+// NavButton Component (Is component mein koi change nahi hai)
 const NavButton = ({ icon, label, to, onClick }) => {
   const location = useLocation();
   const isActive = to && (location.pathname === to || (to !== '/' && location.pathname.startsWith(to)));
 
-  // If 'to' is provided, render a Link. If 'onClick' is provided, render a button.
   const Tag = to ? Link : 'button';
 
   return (
     <Tag
-      to={to} // Only used if Tag is Link
-      onClick={onClick} // Only used if Tag is button
-      type={!to ? 'button' : undefined} // Set type if it's a button
+      to={to}
+      onClick={onClick}
+      type={!to ? 'button' : undefined}
       className={`
         flex flex-col items-center justify-center w-full pt-1 pb-1
         transition-colors duration-200 group focus:outline-none focus:ring-1 focus:ring-green-400 rounded-md
@@ -28,27 +28,28 @@ const NavButton = ({ icon, label, to, onClick }) => {
         {icon}
       </span>
       <span className={`text-[11px] font-medium ${isActive ? 'font-semibold' : ''}`}>
-        {label}
+        {label} {/* Yahaan translated label aayega */}
       </span>
     </Tag>
   );
 };
 
 // --- Main BottomNav Component (Updated) ---
-// It now needs a way to open the drawer, so we pass 'toggleDrawer' as a prop
 function BottomNav({ toggleDrawer }) {
+  const { t } = useTranslation(); // <-- 2. Hook ka istemaal karein
+
   return (
     <nav className="md:hidden fixed bottom-0 left-0 right-0
                    bg-white/90 backdrop-blur-sm border-t border-gray-200
                    flex justify-around items-center h-16 shadow-up z-50">
 
-      {/* Core Features */}
-      <NavButton icon={<LuLayoutDashboard />} label="Home" to="/dashboard" />
-      <NavButton icon={<LuScanLine />} label="Disease Detection" to="/scan" />
-      <NavButton icon={<LuWheat />} label="Recommened" to="/crop-recommendation" />
+      {/* --- 3. Hardcoded labels ko t('key') se replace karein --- */}
+      <NavButton icon={<LuLayoutDashboard />} label={t('nav_dashboard')} to="/dashboard" />
+      <NavButton icon={<LuScanLine />} label={t('nav_scan_crop')} to="/scan" />
+      <NavButton icon={<LuWheat />} label={t('nav_recommend_crop')} to="/crop-recommendation" />
 
       {/* "More" Button - Triggers the drawer */}
-      <NavButton icon={<LuMenu />} label="More" onClick={toggleDrawer} />
+      <NavButton icon={<LuMenu />} label={t('nav_more')} onClick={toggleDrawer} />
 
     </nav>
   );

@@ -415,13 +415,13 @@ if not GOOGLE_API_KEY:
 # Hum 'v1beta' URL ka use karenge (jo API keys support karta hai)
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GOOGLE_API_KEY}"
 
-chat_prompt_context = """
-तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की खेती-बाड़ी (फार्मिंग) में मदद करते हो।
-तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए।
-तुम्हें हमेशा, बिना किसी अपवाद के, केवल और केवल हिंदी (देवनागरी लिपि) में ही जवाब देना है। अंग्रेजी शब्दों का प्रयोग केवल तभी करो जब कोई तकनीकी शब्द हिंदी में उपलब्ध न हो।
-अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो कि 'मैं सिर्फ खेती से जुड़े सवालों का जवाब दे सकता हूँ।'
-वार्तालाप के पिछले संदेशों को ध्यान में रखो।
-"""
+# chat_prompt_context = """
+# तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की खेती-बाड़ी (फार्मिंग) में मदद करते हो।
+# तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए।
+# तुम्हें हमेशा, बिना किसी अपवाद के, केवल और केवल हिंदी (देवनागरी लिपि) में ही जवाब देना है। अंग्रेजी शब्दों का प्रयोग केवल तभी करो जब कोई तकनीकी शब्द हिंदी में उपलब्ध न हो।
+# अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो कि 'मैं सिर्फ खेती से जुड़े सवालों का जवाब दे सकता हूँ।'
+# वार्तालाप के पिछले संदेशों को ध्यान में रखो।
+# """
 print("Gemini AI Chatbot (Direct API) is ready.")
 
 
@@ -432,71 +432,68 @@ def handle_chat():
 
     data = request.json
     user_message = data.get('message')
+    language_code = data.get('language', 'hi')
+    chat_history = data.get('history', [])
     # Get history from frontend (expecting a list of {'role': 'user'/'model', 'parts': [{'text': '...'}]})
     history = data.get('history', []) # Default to empty list if not provided
 
-    if not user_message: return jsonify({"error": "No message provided"}), 400
+    if not user_message: 
+        return jsonify({"error": "No message provided"}), 400
 
     try:
-        # --- Format payload for Gemini API with history ---
-        # Combine system prompt, previous history, and new user message
-        api_contents = [{"parts": [{"text": chat_prompt_context}]}] # Start with system prompt/initial context
+        # 2. Language ke hisaab se System Prompt (instruction) taiyaar karein
+        if language_code == 'hi':
+            system_prompt = """
+                तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की मदद करते हो।
+                तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए।
+                तुम्हें हमेशा, बिना किसी अपवाद के, केवल और केवल हिंदी (देवनागरी लिपि) में ही जवाब देना है।
+                अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो कि 'मैं सिर्फ खेती से जुड़े सवालों का जवाब दे सकता हूँ।'
+            """
+        else: # Default to English
+            system_prompt = """
+                You are 'Fasal Sarthi', an expert AI assistant who helps farmers with agriculture.
+                You must respond *only* in English.
+                Your answers should always be simple, helpful, and related to farming.
+                If asked a non-farming question, politely decline, stating you only answer farming-related questions.
+            """
 
-        # Add existing history, ensuring correct roles ('user' and 'model')
-        for msg in history:
-             # Map frontend roles ('user'/'bot') to Gemini roles ('user'/'model')
-             gemini_role = "user" if msg.get("role") == "user" else "model"
-             # Ensure message format is correct
-             if "message" in msg:
-                 api_contents.append({"role": gemini_role, "parts": [{"text": msg["message"]}]})
+        # 2. Chat history ko Gemini API format mein convert karein
+        # System prompt ko history ke shuruat mein add karein
+        contents = [{"role": "user", "parts": [{"text": system_prompt}]}]
+        # Gemini API expects alternating user/model roles.
+        # Ensure we maintain this structure.
+        
+        for msg in chat_history:
+            # Frontend se 'user' aur 'bot' roles aa rahe hain.
+            # Google API 'user' aur 'model' expect karta hai.
+            api_role = "user" if msg['role'] == "user" else "model"
+            contents.append({"role": api_role, "parts": [{"text": msg['message']}]})
+        
+        # Current user message ko add karein
+        contents.append({"role": "user", "parts": [{"text": user_message}]})
 
-        # Add the new user message
-        api_contents.append({"role": "user", "parts": [{"text": user_message}]})
 
+        # Google API ke liye JSON payload
         payload = {
-            "contents": api_contents,
-            # Optional: Add generationConfig if needed (temperature, etc.)
-            # "generationConfig": { ... }
-            # Optional: Add safetySettings if needed
-            # "safetySettings": [ ... ]
+            "contents": contents # <-- Ab history bhi ismein hai
         }
+        
         headers = {"Content-Type": "application/json"}
-
-        # --- Call Google API ---
         response = requests.post(GEMINI_API_URL, headers=headers, data=json.dumps(payload))
-
         if response.status_code != 200:
             print(f"Error from Google API: {response.text}")
-            # Try to parse error message from Google
-            error_detail = "Unknown Google API error"
-            try:
-                error_json = response.json()
-                error_detail = error_json.get("error", {}).get("message", response.text)
-            except:
-                error_detail = response.text # Use raw text if JSON fails
-            raise Exception(f"Google API error {response.status_code}: {error_detail}")
+            raise Exception("Google API returned an error")
 
         response_data = response.json()
-
-        # Extract the response text safely
-        candidates = response_data.get('candidates')
-        if candidates and candidates[0].get('content', {}).get('parts'):
-             bot_response = candidates[0]['content']['parts'][0]['text']
-             # Simple check if response seems non-Hindi (optional, might be unreliable)
-             # is_likely_hindi = any('\u0900' <= char <= '\u097f' for char in bot_response) # Check for Devanagari characters
-             # if not is_likely_hindi:
-             #     print("Warning: AI response might not be in Hindi:", bot_response[:100])
-             #     # Optionally append a reminder? Or just rely on the prompt.
-        else:
-             print(f"Unexpected response structure from Gemini: {response_data}")
-             bot_response = "माफ़ कीजिये, AI से जवाब प्राप्त करने में कुछ समस्या हुई।" # Hindi error
-
+        bot_response = response_data['candidates'][0]['content']['parts'][0]['text']
+        
         return jsonify({"response": bot_response})
 
     except Exception as e:
         print(f"Error during chat generation: {e}")
-        # traceback.print_exc()
-        return jsonify({"error": f"Failed to generate AI response: {e}"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to generate AI response"}), 500
 
 # --- 6. WEATHER API SETUP ---
 OWM_API_KEY = os.getenv('OWM_API_KEY')
@@ -591,5 +588,5 @@ def handle_get_weather():
         print(f"Error during detailed weather fetch: {e}")
         return jsonify({"error": "Failed to fetch detailed weather data"}), 500
 
-# if __name__ == '__main__':
-#     app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)

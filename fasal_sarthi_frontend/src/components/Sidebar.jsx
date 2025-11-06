@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'; // Naya import
 import { 
   LuLayoutDashboard, LuScanLine, LuHeartPulse, LuBot, LuCloudy, LuSettings, LuWheat, LuFlaskConical
 } from "react-icons/lu";
+import { useTranslation } from 'react-i18next'; // <-- Naya import
 
 // NavItem component
 const NavItem = ({ icon, children, to }) => {
@@ -26,43 +27,44 @@ const NavItem = ({ icon, children, to }) => {
 };
 
 function Sidebar() {
+  const { t } = useTranslation(); // <-- useTranslation hook ka istemaal karein
   return (
     <aside className="hidden  md:flex flex-col w-64 bg-white border-r border-gray-200 shadow-sm">
       <div className="p-5 border-b sticky top-0  border-gray-200">
         <Link to='/'>
         <h1 className="text-2xl font-bold text-green-700 text-center cursor-pointer">
-          🌿 Fasal Sarthi
+          🌿 {t('header_title')}
         </h1>
         </Link>
       </div>
       <nav className="grow p-4 mt-15 fixed ">
         <ul>
           <NavItem icon={<LuLayoutDashboard />} to="/dashboard">
-            Dashboard
+            {t('nav_dashboard')}
           </NavItem>
           <NavItem icon={<LuScanLine />} to="/scan">
-            Crop Disease Detection
+            {t('nav_scan_crop')}
           </NavItem>
           {/* <NavItem icon={<LuHeartPulse />} to="/my-crops">
-            My Crops
+            {t('nav_my_crops')}
           </NavItem> */}
           <NavItem icon={<LuWheat />} to="/crop-recommendation">
-            Crop Recommendation
+            {t('nav_recommend_crop')}
           </NavItem>
 
           <NavItem icon={<LuFlaskConical />} to="/fertilizer-advice">
-            Fertilizer Advice
+            {t('nav_recommend_fertilizer')}
           </NavItem>
           
           <NavItem icon={<LuCloudy />} to="/weather">
-            Weather
+            {t('nav_weather')}
           </NavItem>
           <NavItem icon={<LuBot />} to="/chat">
-            Sarthi AI
+            {t('nav_chat')}
           </NavItem>
           <li className="mt-10 border-t border-gray-200"></li>
           <NavItem icon={<LuSettings />} to="/settings">
-            Settings
+            {t('nav_settings')}
           </NavItem>
         </ul>
       </nav>
