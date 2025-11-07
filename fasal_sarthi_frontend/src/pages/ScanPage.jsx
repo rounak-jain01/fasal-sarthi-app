@@ -125,16 +125,36 @@ function ScanPage() {
   const cameraInputRef = useRef(null);
 
   const handleFileChange = (file) => {
-    if (file && file.type.startsWith("image/")) {
+    // Kadam 1: Check karein ki file hai (user ne 'Cancel' nahi dabaya)
+    if (!file) {
+      // Agar file nahi hai, input ko reset karein aur return
+      if (fileInputRef.current) fileInputRef.current.value = null;
+      if (cameraInputRef.current) cameraInputRef.current.value = null;
+      return;
+    }
+
+    // Kadam 2: Check karein ki file image hai
+    if (file.type.startsWith("image/")) {
       setSelectedFile(file);
       setPreview(URL.createObjectURL(file));
       setResult(null);
       setError(null);
       setCure(null);
     } else {
-      setError(t("scan_error_invalid_file")); // Translated error
-      handleClearFile();
+      // Agar file hai, lekin image nahi hai (jaise PDF)
+      setError(t("scan_error_invalid_file"));
     }
+
+    // [--- ANDROID FIX ---]
+    // Dono inputs ko force-reset karein, taaki agla click
+    // (bhaley hi same file ho) 'onChange' ko trigger kare.
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null;
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = null;
+    }
+    // [--- END FIX ---]
   };
 
   const onDrop = useCallback(
@@ -166,8 +186,16 @@ function ScanPage() {
     setResult(null);
     setError(null);
     setCure(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
+
+    // [--- ANDROID FIX (in Clear) ---]
+    // Jab user 'X' dabaye, tab bhi inputs ko 'null' par reset karein.
+    if (fileInputRef.current) {
+      fileInputRef.current.value = null;
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = null;
+    }
+    // [--- END FIX ---]
   };
 
   // --- API CALL 1: Start Scan (Translated Error) ---

@@ -295,5 +295,10 @@
   "mandi_tbl_max": "अधिक. भाव",
   "mandi_tbl_avg": "औसत भाव",
   "mandi_no_results_title": "कुछ नहीं मिला",
-  "mandi_no_results_desc": "कृपया नई फसल या राज्य चुन कर दोबारा प्रयास करें।"
+  "mandi_no_results_desc": "कृपया नई फसल या राज्य चुन कर दोबारा प्रयास करें।",
+  "weather_advice_rain": "बारिश हो रही है। आज स्प्रे करने से बचें।",
+  "weather_advice_storm": "तूफ़ान की चेतावनी! कृपया सुरक्षित रहें।",
+  "weather_advice_clear_hot": "मौसम साफ़ और गर्म है। सिंचाई का ध्यान रखें।",
+  "weather_advice_clear_good": "मौसम साफ़ है। खेती के कामों के लिए अच्छा दिन है।",
+  "weather_advice_default": "मौसम की सलाह लादे जा रही है..."
 }

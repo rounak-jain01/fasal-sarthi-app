@@ -286,5 +286,10 @@
   "mandi_tbl_max": "Max Price",
   "mandi_tbl_avg": "Avg. Price",
   "mandi_no_results_title": "No records found",
-  "mandi_no_results_desc": "Please try again with a different commodity or state."
+  "mandi_no_results_desc": "Please try again with a different commodity or state.",
+  "weather_advice_rain": "It's raining. Avoid spraying today.",
+  "weather_advice_storm": "Storm warning! Stay safe.",
+  "weather_advice_clear_hot": "Clear and hot. Remember to irrigate.",
+  "weather_advice_clear_good": "Clear skies. A good day for field work.",
+  "weather_advice_default": "Loading weather advice..."
 }

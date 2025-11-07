@@ -525,21 +525,19 @@ def handle_chat():
                 If asked a non-farming question, politely decline, stating you only answer farming-related questions.
             """
 
-        # 2. Chat history ko Gemini API format mein convert karein
-        # System prompt ko history ke shuruat mein add karein
+        # [--- YEH HAI FIX ---]
+        # Hum 'contents' list ko system prompt se shuru karenge
         contents = [{"role": "user", "parts": [{"text": system_prompt}]}]
-        # Gemini API expects alternating user/model roles.
-        # Ensure we maintain this structure.
         
+        # Ab, frontend se aayi poori history ko add karenge
         for msg in chat_history:
-            # Frontend se 'user' aur 'bot' roles aa rahe hain.
-            # Google API 'user' aur 'model' expect karta hai.
+            # Frontend 'user'/'bot' bhejta hai, Gemini 'user'/'model' chahta hai
             api_role = "user" if msg['role'] == "user" else "model"
             contents.append({"role": api_role, "parts": [{"text": msg['message']}]})
         
-        # Current user message ko add karein
+        # Aakhir mein, naya sawaal (user_message) add karenge
         contents.append({"role": "user", "parts": [{"text": user_message}]})
-
+        # [--- FIX END ---]
 
         # Google API ke liye JSON payload
         payload = {

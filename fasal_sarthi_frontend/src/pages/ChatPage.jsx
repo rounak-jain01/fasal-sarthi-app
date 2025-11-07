@@ -84,22 +84,7 @@ function ChatPage() {
   const chatEndRef = useRef(null); // For auto-scrolling
 
   // Prevent whole page from scrolling while this page is mounted
-  useEffect(() => {
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlHeight = document.documentElement.style.height;
-    // Lock scrolling
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.height = "100%";
-    document.body.style.height = "100%";
-
-    return () => {
-      // restore
-      document.body.style.overflow = prevBodyOverflow || "";
-      document.documentElement.style.height = prevHtmlHeight || "";
-      document.body.style.height = "";
-    };
-  }, []);
-
+  
   // Scroll to bottom on new message
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
