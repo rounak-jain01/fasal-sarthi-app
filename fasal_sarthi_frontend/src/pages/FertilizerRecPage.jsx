@@ -1,7 +1,11 @@
 // src/pages/FertilizerRecPage.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTranslation } from 'react-i18next'; // <-- Naya import
 import axios from "../api/axiosInstance";
+// [--- SOIL CONTEXT FIX (2) ---]
+// Hamara naya Soil context hook import karein
+import { useSoilData } from '../Context/SoilProvider';
+// [--- END FIX ---]
 import {
   LuFlaskConical,
   LuLoader,
@@ -92,25 +96,77 @@ function FertilizerRecPage() {
     "coffee", "kidneybeans", "orange", "pomegranate", "rice", "watermelon",
   ];
 
-  // State for form inputs (Ismein koi change nahi)
+  // [--- SOIL CONTEXT FIX (3) ---]
+  // Naye shared context se data aur updater function lein
+  const { soilData, updateSoilData } = useSoilData();
+
+  // Mapping: Fertilizer keys -> Soil context keys
+  const keyMap = {
+    'Temparature': 'avg_temp_c',
+    'Humidity': 'avg_humidity_pct',
+    'Nitrogen': 'nitrogen_kg_ha',
+    'Potassium': 'potassium_kg_ha',
+    'Phosphorous': 'phosphorus_kg_ha',
+    'Soil_Type': 'soil_type',
+    // 'Moisture' aur 'Crop_Type' shared context mein nahi hain,
+    // isliye hum unhein local state mein hi rakhenge.
+  };
+
+  // State for form inputs
   const [formData, setFormData] = useState({
-    Temparature: "", Humidity: "", Moisture: "",
-    Nitrogen: "", Potassium: "", Phosphorous: "",
-    Soil_Type: "", Crop_Type: "",
+    // Shared data ko 'soilData' se pre-fill karein
+    Temparature: soilData.avg_temp_c || "",
+    Humidity: soilData.avg_humidity_pct || "",
+    Nitrogen: soilData.nitrogen_kg_ha || "",
+    Potassium: soilData.potassium_kg_ha || "",
+    Phosphorous: soilData.phosphorus_kg_ha || "",
+    
+    // Yeh data local hai
+    Moisture: "", 
+    
+    // Soil_Type alag hai, isliye hum isse local hi rakhenge, pre-fill nahi karenge
+    Soil_Type: "", 
+    Crop_Type: "",
   });
+  // [--- END FIX ---]
 
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handle input changes (Ismein koi change nahi)
+  // [--- SOIL CONTEXT FIX (4) ---]
+  // Jab 'soilData' (context se) badle, tab local form ko update karein
+  // Yeh tab kaam aayega jab user CropRecPage se data bhar kar is page par aaye
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      Temparature: soilData.avg_temp_c || prev.Temparature,
+      Humidity: soilData.avg_humidity_pct || prev.Humidity,
+      Nitrogen: soilData.nitrogen_kg_ha || prev.Nitrogen,
+      Potassium: soilData.potassium_kg_ha || prev.Potassium,
+      Phosphorous: soilData.phosphorus_kg_ha || prev.Phosphorous,
+    }));
+  }, [soilData]);
+  // [--- END FIX ---]
+
+  // [--- SOIL CONTEXT FIX (5) ---]
+  // Handle input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // 1. Local form ko update karein (taaki UI update ho)
     setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
+
+    // 2. Shared Context ko bhi update karein (taaki CropRecPage update ho)
+    const contextKey = keyMap[name]; // Mapping se context key dhoondhein
+    if (contextKey) {
+      updateSoilData(contextKey, value);
+    }
   };
+  // [--- END FIX ---]
 
   // Handle form submission (Error messages ko translate karein)
   const handleSubmit = async (e) => {
@@ -119,6 +175,8 @@ function FertilizerRecPage() {
     setResult(null);
     setError(null);
 
+    // [--- SOIL CONTEXT FIX (6) ---]
+    // Payload ab local 'formData' se hi banega (jo context se pre-filled hai)
     const payload = {
       ...formData,
       Temparature: parseFloat(formData.Temparature),
@@ -128,6 +186,7 @@ function FertilizerRecPage() {
       Potassium: parseFloat(formData.Potassium),
       Phosphorous: parseFloat(formData.Phosphorous),
     };
+    // [--- END FIX ---]
 
     // Validation for NaN inputs
     if (Object.values(payload).some(v => typeof v === 'number' && isNaN(v))) {
@@ -244,64 +303,67 @@ function FertilizerRecPage() {
                 {t('fert_rec_form_intro')}
               </p>
 
+             {/* [--- SOIL CONTEXT FIX (7) ---] */}
+              {/* Form fields ab 'formData.FIELD' se jude hain, jo context se pre-filled hain */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <InputField
                   label={t('fert_rec_label_temperature')}
                   name="Temparature"
-                  value={formData.Temparature}
+                  value={formData.Temparature} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_temperature"
                 />
                 <InputField
                   label={t('fert_rec_label_humidity')}
                   name="Humidity"
-                  value={formData.Humidity}
+                  value={formData.Humidity} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_humidity"
                 />
                 <InputField
                   label={t('fert_rec_label_moisture')}
                   name="Moisture"
-                  value={formData.Moisture}
+                  value={formData.Moisture} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_moisture"
                 />
                 <InputField
                   label={t('fert_rec_label_nitrogen')}
                   name="Nitrogen"
-                  value={formData.Nitrogen}
+                  value={formData.Nitrogen} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_nitrogen"
                 />
                 <InputField
                   label={t('fert_rec_label_potassium')}
                   name="Potassium"
-                  value={formData.Potassium}
+                  value={formData.Potassium} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_potassium"
                 />
                 <InputField
                   label={t('fert_rec_label_phosphorous')}
                   name="Phosphorous"
-                  value={formData.Phosphorous}
+                  value={formData.Phosphorous} 
                   onChange={handleChange}
                   placeholder="fert_rec_placeholder_phosphorous"
                 />
                 <SelectField
                   label={t('fert_rec_label_soil_type')}
                   name="Soil_Type"
-                  value={formData.Soil_Type}
+                  value={formData.Soil_Type} 
                   onChange={handleChange}
                   options={soilTypeOptions}
                 />
                 <SelectField
                   label={t('fert_rec_label_crop_type')}
                   name="Crop_Type"
-                  value={formData.Crop_Type}
+                  value={formData.Crop_Type} 
                   onChange={handleChange}
                   options={cropTypeOptions}
                 />
               </div>
+              {/* [--- END FIX ---] */}
 
               <button
                 type="submit"

@@ -61,7 +61,7 @@ function EditProfilePage() {
 
       console.log('Profile updated successfully!');
       setLoading(false);
-      setSuccess('Profile updated successfully!');
+      setSuccess(t('profile_update_success'));
 
       setTimeout(() => {
         navigate('/dashboard');
@@ -89,36 +89,28 @@ function EditProfilePage() {
         <div className="text-center mb-8">
           <LuLeaf className="inline-block text-5xl text-green-600 mb-2" />
           <h1 className="text-3xl font-bold text-gray-800">
-            Update Profile
+            {t('profile_edit_title')}
           </h1>
         </div>
 
         <form 
           onSubmit={handleUpdateProfile} 
-          // [--- CLOSE BUTTON FIX (2) ---]
-          // Form ko 'relative' banayein taaki icon ko position kar sakein
           className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 relative"
-          // [--- END FIX ---]
         >
-          {/* [--- CLOSE BUTTON FIX (3) ---] */}
-          {/* Close button (X icon) ko add karein */}
           <Link 
-            to="/dashboard" // Yeh dashboard par waapis bhej dega
+            to="/dashboard"
             aria-label="Close"
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
           >
             <LuX size={24} />
           </Link>
-          {/* [--- END FIX ---] */}
 
-          {/* Error Message */}
           {error && (
             <div className="mb-4 flex items-center rounded-lg bg-red-50 p-4 text-sm text-red-700">
               <LuAlertTriangle className="mr-2 h-5 w-5" />
               <span>{error}</span>
             </div>
           )}
-          {/* Success Message */}
           {success && (
             <div className="mb-4 flex items-center rounded-lg bg-green-50 p-4 text-sm text-green-700">
               <LuCheckCircle className="mr-2 h-5 w-5" />
@@ -126,10 +118,9 @@ function EditProfilePage() {
             </div>
           )}
           
-          {/* ... Baaki ka form (Email, Full Name, Username) ... */}
           <div className="mb-4">
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              {t('profile_label_email')}
             </label>
             <input
               type="email"
@@ -142,7 +133,7 @@ function EditProfilePage() {
 
           <div className="mb-4">
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
+              {t('profile_label_fullname')}
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -155,14 +146,14 @@ function EditProfilePage() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="e.g., Rounak Jain"
+                placeholder={t('profile_placeholder_fullname')}
               />
             </div>
           </div>
 
           <div className="mb-6">
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username (optional)
+              {t('profile_label_username')}
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -174,7 +165,7 @@ function EditProfilePage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="e.g., rounak_j"
+                placeholder={t('profile_placeholder_username')}
               />
             </div>
           </div>
@@ -184,7 +175,7 @@ function EditProfilePage() {
             disabled={loading}
             className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold shadow-md hover:bg-green-700 transition duration-300 flex items-center justify-center disabled:opacity-50"
           >
-            {loading ? <LuLoader className="animate-spin" /> : "Save Changes"}
+            {loading ? <LuLoader className="animate-spin" /> : t('profile_button_update')}
           </button>
         </form>
       </div>

@@ -13,7 +13,7 @@ import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import ScanPage from "./pages/ScanPage";
 import ChatPage from "./pages/ChatPage";
-// import MyCropsPage from './pages/MyCropsPage'; // Yeh aapne comment kiya hua tha
+import MandiPage from "./pages/MandiPage";
 import CropRecPage from "./pages/CropRecPage";
 import FertilizerRecPage from "./pages/FertilizerRecPage";
 import WeatherPage from "./pages/WeatherPage";
@@ -160,6 +160,16 @@ function App() {
           <ProtectedRoute>
             {/* Edit page layout ke bina achha dikhega */}
             <EditProfilePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/mandi-prices"
+        element={
+          <ProtectedRoute>
+            <MainAppLayout>
+              <MandiPage />
+            </MainAppLayout>
           </ProtectedRoute>
         }
       />

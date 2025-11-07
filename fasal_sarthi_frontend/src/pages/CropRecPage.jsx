@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { useTranslation } from 'react-i18next'; // <-- Naya import
 import axios from "../api/axiosInstance";
 import i18n from '../i18n'; // <-- i18n import karein
+import { useSoilData } from '../Context/SoilProvider';
 
 import ReactMarkdown from "react-markdown"; // For formatting AI advice
 import {
@@ -249,29 +250,49 @@ function CropRecPage() {
   ];
 
   // State
-  const [formData, setFormData] = useState({
-    soil_ph: "",
-    nitrogen_kg_ha: "",
-    phosphorus_kg_ha: "",
-    potassium_kg_ha: "",
-    annual_rainfall_mm: "",
-    avg_temp_c: "",
-    avg_humidity_pct: "",
-    soil_type: "",
-    irrigation_type: "",
-    previous_crop: "",
-  });
+  // const [soilData, setsoilData] = useState({
+  //   soil_ph: "",
+  //   nitrogen_kg_ha: "",
+  //   phosphorus_kg_ha: "",
+  //   potassium_kg_ha: "",
+  //   annual_rainfall_mm: "",
+  //   avg_temp_c: "",
+  //   avg_humidity_pct: "",
+  //   soil_type: "",
+  //   irrigation_type: "",
+  //   previous_crop: "",
+  // });
+
+
+  // [--- SOIL CONTEXT FIX (2) ---]
+  // Purane local 'soilData' state ko hata dein
+  // const [soilData, setsoilData] = useState({ ... }); // <-- YEH LINE DELETE KAR DI
+  
+  // Naye shared context se data aur updater function lein
+  const { soilData, updateSoilData } = useSoilData();
+  // [--- END FIX ---]
+
+
   const [result, setResult] = useState(null); // Recommended crop name
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false); // Loading for crop rec
   const [aiAdvice, setAiAdvice] = useState(null); // State for AI advice
   const [isAdviceLoading, setIsAdviceLoading] = useState(false); // Loading for AI advice
 
-  // Handlers
+// [--- SOIL CONTEXT FIX (3) ---]
+  // Naya 'handleChange' function jo seedha context ko update karega
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    updateSoilData(name, value); // 'setsoilData' ke bajaaye 'updateSoilData'
   };
+  // [--- END FIX ---]
+
+
+  // Handlers
+  // const handleChange = (e) => {
+  //   const { name, value } = e.target;
+  //   setsoilData((prev) => ({ ...prev, [name]: value }));
+  // };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -281,12 +302,23 @@ function CropRecPage() {
     setAiAdvice(null); // Reset AI advice on new crop search
     setIsAdviceLoading(false);
 
+    // const payload = {
+    //   soil_type: soilData.soil_type,
+    //   irrigation_type: soilData.irrigation_type,
+    //   previous_crop:
+    //     soilData.previous_crop === "Other" ? "Unknown" : soilData.previous_crop,
+    // };
+
+    // [--- SOIL CONTEXT FIX (4) ---]
+    // Ab 'soilData' ke bajaaye 'soilData' se payload banayein
     const payload = {
-      soil_type: formData.soil_type,
-      irrigation_type: formData.irrigation_type,
+      soil_type: soilData.soil_type,
+      irrigation_type: soilData.irrigation_type,
       previous_crop:
-        formData.previous_crop === "Other" ? "Unknown" : formData.previous_crop,
+        soilData.previous_crop === "Other" ? "Unknown" : soilData.previous_crop,
     };
+    // [--- END FIX ---]
+    
     const numericalKeys = [
       "soil_ph",
       "nitrogen_kg_ha",
@@ -298,23 +330,26 @@ function CropRecPage() {
     ];
     let formValid = true;
 
-    // Validate Numerical Inputs
     for (const key of numericalKeys) {
-      const value = parseFloat(formData[key]);
+      // [--- SOIL CONTEXT FIX (5) ---]
+      // Ab 'soilData' ke bajaaye 'soilData' se validate karein
+      const value = parseFloat(soilData[key]);
+      // [--- END FIX ---]
       if (isNaN(value)) {
-        setError(t('crop_rec_error_invalid_input', { key: t(`crop_rec_label_${key}`) })); // Translated error
+        setError(t('crop_rec_error_invalid_input', { key: t(`crop_rec_label_${key}`) }));
         formValid = false;
         break;
       }
       payload[key] = value;
     }
-    // Validate Categorical Inputs
+
     if (
-      !formData.soil_type ||
-      !formData.irrigation_type ||
-      !formData.previous_crop
+      !soilData.soil_type ||
+      !soilData.irrigation_type ||
+      !soilData.previous_crop
     ) {
-      setError(t('crop_rec_error_select_options')); // Translated error
+    // [--- END FIX ---]
+      setError(t('crop_rec_error_select_options'));
       formValid = false;
     }
 
@@ -392,7 +427,7 @@ function CropRecPage() {
                   icon={<LuAtom size={16} />}
                   label={t('crop_rec_label_soil_ph')}
                   name="soil_ph"
-                  value={formData.soil_ph}
+                  value={soilData.soil_ph}
                   onChange={handleChange}
                   placeholder="crop_rec_ph_placeholder"
                 />
@@ -400,7 +435,7 @@ function CropRecPage() {
                   icon={<LuAtom size={16} />}
                   label={t('crop_rec_label_nitrogen_kg_ha')}
                   name="nitrogen_kg_ha"
-                  value={formData.nitrogen_kg_ha}
+                  value={soilData.nitrogen_kg_ha}
                   onChange={handleChange}
                   placeholder="crop_rec_nitrogen_placeholder"
                 />
@@ -408,7 +443,7 @@ function CropRecPage() {
                   icon={<LuAtom size={16} />}
                   label={t('crop_rec_label_phosphorus_kg_ha')}
                   name="phosphorus_kg_ha"
-                  value={formData.phosphorus_kg_ha}
+                  value={soilData.phosphorus_kg_ha}
                   onChange={handleChange}
                   placeholder="crop_rec_phosphorus_placeholder"
                 />
@@ -416,7 +451,7 @@ function CropRecPage() {
                   icon={<LuAtom size={16} />}
                   label={t('crop_rec_label_potassium_kg_ha')}
                   name="potassium_kg_ha"
-                  value={formData.potassium_kg_ha}
+                  value={soilData.potassium_kg_ha}
                   onChange={handleChange}
                   placeholder="crop_rec_potassium_placeholder"
                 />
@@ -434,7 +469,7 @@ function CropRecPage() {
                   icon={<LuCloudSunRain size={16} />}
                   label={t('crop_rec_label_annual_rainfall_mm')}
                   name="annual_rainfall_mm"
-                  value={formData.annual_rainfall_mm}
+                  value={soilData.annual_rainfall_mm}
                   onChange={handleChange}
                   placeholder="crop_rec_rainfall_placeholder"
                 />
@@ -442,7 +477,7 @@ function CropRecPage() {
                   icon={<LuThermometer size={16} />}
                   label={t('crop_rec_label_avg_temp_c')}
                   name="avg_temp_c"
-                  value={formData.avg_temp_c}
+                  value={soilData.avg_temp_c}
                   onChange={handleChange}
                   placeholder="crop_rec_temp_placeholder"
                 />
@@ -450,7 +485,7 @@ function CropRecPage() {
                   icon={<LuDroplet size={16} />}
                   label={t('crop_rec_label_avg_humidity_pct')}
                   name="avg_humidity_pct"
-                  value={formData.avg_humidity_pct}
+                  value={soilData.avg_humidity_pct}
                   onChange={handleChange}
                   placeholder="crop_rec_humidity_placeholder"
                 />
@@ -468,7 +503,7 @@ function CropRecPage() {
                   icon={<LuMapPin size={16} />}
                   label={t('crop_rec_label_soil_type')}
                   name="soil_type"
-                  value={formData.soil_type}
+                  value={soilData.soil_type}
                   onChange={handleChange}
                   options={soilTypeOptions}
                 />
@@ -476,7 +511,7 @@ function CropRecPage() {
                   icon={<LuDroplet size={16} />}
                   label={t('crop_rec_label_irrigation_type')}
                   name="irrigation_type"
-                  value={formData.irrigation_type}
+                  value={soilData.irrigation_type}
                   onChange={handleChange}
                   options={irrigationTypeOptions}
                 />
@@ -484,7 +519,7 @@ function CropRecPage() {
                   icon={<LuWheat size={16} />}
                   label={t('crop_rec_label_previous_crop')}
                   name="previous_crop"
-                  value={formData.previous_crop}
+                  value={soilData.previous_crop}
                   onChange={handleChange}
                   options={previousCropOptions}
                 />

@@ -6,14 +6,14 @@ import { BrowserRouter } from 'react-router-dom';
 import { WeatherProvider } from './Context/WeatherContext';
 import './i18n'; // i18n config file
 
-// [--- FIX ---]
-// Supabase client ko alag file se import karein
 import { supabaseClient } from './lib/supabaseClient'; 
-// Purane imports (createClient) hata diye
 import { SessionContextProvider } from '@supabase/auth-helpers-react';
-// [--- END FIX ---]
-
 import { UserProvider } from './Context/UserProvider';
+
+// [--- FIX ---]
+// Naye SoilProvider ko import karein
+import { SoilProvider } from './Context/SoilProvider';
+// [--- END FIX ---]
 
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -24,21 +24,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </div>
     }>
       <BrowserRouter>
-        {/* [--- FIX ---] */}
-        {/* Ab hum imported client ko yahaan pass kar rahe hain */}
         <SessionContextProvider supabaseClient={supabaseClient}>
           <WeatherProvider>
             <UserProvider>
-              <App />
+              {/* [--- FIX ---] */}
+              {/* SoilProvider ko yahaan add karein */}
+              <SoilProvider>
+                <App />
+              </SoilProvider>
+              {/* [--- END FIX ---] */}
             </UserProvider>
           </WeatherProvider>
         </SessionContextProvider>
-        {/* [--- END FIX ---] */}
       </BrowserRouter>
     </Suspense>
   </React.StrictMode>,
 );
-
-// [--- FIX ---]
-// Neeche se export { supabaseClient } waali line HATA di gayi hai.
-// [--- END FIX ---]

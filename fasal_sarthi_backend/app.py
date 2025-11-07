@@ -657,5 +657,105 @@ def handle_get_weather():
         print(f"Error during detailed weather fetch: {e}")
         return jsonify({"error": "Failed to fetch detailed weather data"}), 500
 
+
+
+# [--- MANDI API FIX (1) ---]
+# data.gov.in API ki key aur URL ko .env se load karein
+DATA_GOV_API_KEY = os.getenv('DATA_GOV_API_KEY')
+MANDI_API_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+
+if not DATA_GOV_API_KEY:
+    print("WARNING: DATA_GOV_API_KEY environment variable not set! Mandi prices will fail.")
+
+
+# [--- MANDI API FIX (2) ---]
+# --- NAYA MANDI PRICE ROUTE ---
+@app.route('/get_mandi_prices', methods=['POST'])
+@token_required
+def handle_mandi_prices():
+    if not DATA_GOV_API_KEY:
+        return jsonify({"error": "Mandi API key is not configured on the server."}), 503
+
+    # 1. Frontend se data lein
+    data = request.json
+    state = data.get('state')
+    commodity = data.get('commodity')
+    district = data.get('district')
+
+    if not state or not commodity:
+        return jsonify({"error": "State and commodity are required."}), 400
+
+    # 2. Sarkaari API ko call karne ke liye parameters taiyaar karein
+    params = {
+        'api-key': DATA_GOV_API_KEY,
+        'format': 'json',
+        'filters[state]': state,       # <-- 'state' (lowercase)
+        'filters[commodity]': commodity, # <-- 'commodity' (lowercase)
+        'limit': 50 # 50 results kaafi hain
+    }
+    if district:
+        params['filters[district]'] = district
+
+    try:
+        # 3. Sarkaari API ko request karein
+        response = requests.get(MANDI_API_URL, params=params)
+        # [--- DEBUG FIX (1) ---]
+        # SERVER SE AAYA HUA RAW DATA PRINT KARO
+        # print("--- RAW MANDI API RESPONSE ---")
+        # print(response.json())
+        # print("------------------------------")
+        # [--- END FIX ---]
+        
+        if response.status_code != 200:
+            print(f"Mandi API Error: {response.text}")
+            return jsonify({"error": "Failed to fetch data from Mandi API."}), 502
+
+        mandi_data = response.json()
+        records = mandi_data.get('records', [])
+        # [--- DEBUG FIX (2) ---]
+        # 'records' key ko print karke dekho
+        # print(f"--- Found {len(records)} records ---")
+        # [--- END FIX ---]
+
+        if not records:
+            # return jsonify({"error": "No records found for this state and commodity."}), 404
+            return jsonify([])
+
+        # 4. Data ko saaf (simplify) karein
+        # !! IMPORTANT !!: Yeh 'mandi', 'district', aur 'modal_price'
+        # sarkaari API se aane waale column ke naam hain.
+        # Agar yeh kaam na kare, toh humein in naamo ko badalna padega.
+        simplified_prices = []
+        for record in records:
+            simplified_prices.append({
+                "mandi": record.get('market'),
+                "district": record.get('district'),
+                "price": record.get('modal_price'),
+                "date": record.get('arrival_date'),  # <-- NAYA DATA
+                "variety": record.get('variety'),    # <-- NAYA DATA
+                "min_price": record.get('min_price'),  # <-- NAYA DATA
+                "max_price": record.get('max_price')   # <-- NAYA DATA
+            })
+
+            # simplified_prices ko bhi print karke dekhein
+        # print("--- SIMPLIFIED DATA ---")
+        # print(simplified_prices)
+        # print("-----------------------")
+
+        # 5. Saaf data frontend ko bhej dein
+        return jsonify(simplified_prices)
+
+    except requests.exceptions.RequestException as e:
+        print(f"Mandi API Request Exception: {e}")
+        return jsonify({"error": "Could not connect to Mandi API service."}), 504
+    except Exception as e:
+        print(f"Mandi Data Processing Error: {e}")
+        return jsonify({"error": "Error processing Mandi data."}), 500
+# [--- END FIX ---]
+
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

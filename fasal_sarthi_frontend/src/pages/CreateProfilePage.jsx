@@ -84,27 +84,26 @@ function CreateProfilePage() {
   // [--- END FIX ---]
 
   // Agar profile nahi hai, tabhi form dikhayein
+  // [--- FIX ---]
+  // Sabhi hardcoded text ko t() se replace kiya
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
         
-        {/* Logo aur Title */}
         <div className="text-center mb-8">
           <LuLeaf className="inline-block text-5xl text-green-600 mb-2" />
           <h1 className="text-3xl font-bold text-gray-800">
             {t('header_title')}
           </h1>
-          <p className="text-gray-600">Welcome! Let's set up your profile.</p>
+          <p className="text-gray-600">{t('profile_create_welcome')}</p>
         </div>
 
-        {/* Profile Form */}
         <form 
           onSubmit={handleSubmitProfile} 
           className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200"
         >
-          {/* ... (baaki ka form code waisa hi hai) ... */}
           <h2 className="text-2xl font-semibold text-center text-gray-700 mb-6">
-            Create Your Profile
+            {t('profile_create_title')}
           </h2>
 
           {error && (
@@ -115,8 +114,8 @@ function CreateProfilePage() {
           )}
           
           <div className="mb-4">
-            <label E htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              {t('profile_label_email')}
             </label>
             <input
               type="email"
@@ -129,7 +128,7 @@ function CreateProfilePage() {
 
           <div className="mb-4">
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
+              {t('profile_label_fullname')}
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -142,14 +141,14 @@ function CreateProfilePage() {
                 onChange={(e) => setFullName(e.target.value)}
                 required
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="e.g., Rounak Jain"
+                placeholder={t('profile_placeholder_fullname')}
               />
             </div>
           </div>
 
           <div className="mb-6">
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username (optional)
+              {t('profile_label_username')}
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3">
@@ -161,7 +160,7 @@ function CreateProfilePage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                placeholder="e.g., rounak_j"
+                placeholder={t('profile_placeholder_username')}
               />
             </div>
           </div>
@@ -174,13 +173,15 @@ function CreateProfilePage() {
             {loading ? (
               <LuLoader className="animate-spin" />
             ) : (
-              "Save and Continue"
+              t('profile_button_save')
             )}
           </button>
         </form>
       </div>
     </div>
   );
+  // [--- END FIX ---]
+
 }
 
 export default CreateProfilePage;

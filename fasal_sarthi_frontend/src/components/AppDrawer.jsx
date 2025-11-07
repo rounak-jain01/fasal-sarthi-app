@@ -13,6 +13,7 @@ import {
   LuCloudy,
   LuHouse as LuHome,
   LuLogOut,
+  LuTrendingUp,
 } from 'react-icons/lu';
 
 // Drawer Item Component (Ismein koi change nahi hai)
@@ -106,6 +107,7 @@ function AppDrawer({ isOpen, toggleDrawer }) {
             <DrawerItem icon={<LuHome />} to="/" onClick={toggleDrawer}>{t('nav_home_landing')}</DrawerItem>
             <DrawerItem icon={<LuLayoutDashboard />} to="/dashboard" onClick={toggleDrawer}>{t('nav_dashboard')}</DrawerItem>
             <DrawerItem icon={<LuScanLine />} to="/scan" onClick={toggleDrawer}>{t('nav_scan_crop')}</DrawerItem>
+            <DrawerItem icon={<LuTrendingUp />} to="/mandi-prices" onClick={toggleDrawer}>{t('nav_mandi_prices')}</DrawerItem>
             <DrawerItem icon={<LuWheat />} to="/crop-recommendation" onClick={toggleDrawer}>{t('nav_recommend_crop')}</DrawerItem>
             <DrawerItem icon={<LuFlaskConical />} to="/fertilizer-advice" onClick={toggleDrawer}>{t('nav_recommend_fertilizer')}</DrawerItem>
             <DrawerItem icon={<LuCloudy />} to="/weather" onClick={toggleDrawer}>{t('nav_weather')}</DrawerItem>
