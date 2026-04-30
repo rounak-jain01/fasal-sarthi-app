@@ -26,7 +26,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 """ =====================================================================
     SECTION 2: SUPABASE DATABASE & AUTHENTICATION
@@ -48,6 +48,9 @@ def token_required(f):
     """Gatekeeper: Checks for valid Supabase JWT token in headers."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            return '', 200
+        
         if not supabase:
             return jsonify({"error": "Authentication system is not configured."}), 503
 
@@ -175,7 +178,7 @@ if not DATA_GOV_API_KEY: print("⚠️ WARNING: DATA_GOV_API_KEY not set!")
 def home():
     return jsonify({"status": "success", "message": "Fasal Sarthi Backend Server is running!"})
 
-@app.route('/predict_disease', methods=['POST'])
+@app.route('/predict_disease', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_prediction():
     interpreter = get_disease_interpreter()
@@ -233,7 +236,7 @@ def handle_prediction():
         return jsonify({"error": "Error processing image"}), 500
 
 
-@app.route('/recommend_crop', methods=['POST'])
+@app.route('/recommend_crop', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_crop_recommendation():
     if not crop_model_stacking:
@@ -277,7 +280,7 @@ def handle_crop_recommendation():
         return jsonify({"error": "Failed to recommend crop"}), 500
 
 
-@app.route('/recommend_fertilizer', methods=['POST'])
+@app.route('/recommend_fertilizer', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_fertilizer_recommendation():
     if not fert_model:
@@ -311,7 +314,7 @@ def handle_fertilizer_recommendation():
         return jsonify({"error": str(e)}), 400
 
 
-@app.route('/sarthi_ai_chat', methods=['POST'])
+@app.route('/sarthi_ai_chat', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_chat():
     if not GROQ_API_KEY: return jsonify({"error": "Groq API key not configured."}), 503
@@ -465,7 +468,7 @@ def get_weather_desc_and_icon(wmo_code, is_day):
     return weather_mapping.get(wmo_code, ("Unknown", f"01{day_night}"))
 
 # --- NAYA WEATHER ENDPOINT (OPEN-METEO) ---
-@app.route('/get_weather', methods=['POST'])
+@app.route('/get_weather', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_get_weather():
     data = request.json
@@ -552,7 +555,7 @@ def handle_get_weather():
         return jsonify({"error": "An internal error occurred while fetching weather."}), 500
 
 
-@app.route('/get_mandi_prices', methods=['POST'])
+@app.route('/get_mandi_prices', methods=['POST', 'OPTIONS'])
 @token_required
 def handle_mandi_prices():
     if not DATA_GOV_API_KEY: return jsonify({"error": "Mandi API key missing."}), 503
