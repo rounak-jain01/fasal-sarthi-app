@@ -26,7 +26,17 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, resources={
+    r"/*": {
+        "origins": [
+            "https://fasal-sarthi-app.vercel.app", # आपका लाइव फ्रंटएंड
+            "http://localhost:5173",               # लोकल टेस्टिंग के लिए
+            "http://localhost:3000"
+        ],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+}, supports_credentials=True)
 
 """ =====================================================================
     SECTION 2: SUPABASE DATABASE & AUTHENTICATION
