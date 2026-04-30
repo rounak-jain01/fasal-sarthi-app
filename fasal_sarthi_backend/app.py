@@ -201,8 +201,16 @@ def handle_prediction():
         img_array = np.expand_dims(img_array, axis=0).astype(input_details[0]['dtype'])
 
         # Normalization
+        # if input_details[0]['dtype'] == np.float32:
+        #      img_array = img_array / 255.0
+
+        # Normalization (EfficientNet expects 0-255 raw pixels, or its own preprocess_input)
         if input_details[0]['dtype'] == np.float32:
-             img_array = img_array / 255.0
+             # Option A: Agar aapne manually /255 karke train kiya tha, toh ise rehne dein.
+             # Option B: EfficientNet default use kiya tha toh ise hata dein. 
+             # Sabse best aur safe tareeka yeh hai ki EfficientNet ka in-built preprocessor use karein:
+             img_array = tf.keras.applications.efficientnet.preprocess_input(img_array)
+
 
         # Run Inference (Thread-safe)
         with interpreter_lock:
@@ -368,61 +376,180 @@ def handle_chat():
         return jsonify({"error": "Failed to generate AI response"}), 500
 
 
+# @app.route('/get_weather', methods=['POST'])
+# @token_required
+# def handle_get_weather():
+#     data = request.json
+#     params = {'appid': OWM_API_KEY, 'units': 'metric'}
+    
+#     if data.get('lat') is not None and data.get('lon') is not None:
+#         params.update({'lat': data.get('lat'), 'lon': data.get('lon')})
+#     elif data.get('city'):
+#         params['q'] = data.get('city')
+#     else:
+#         return jsonify({"error": "City name or coordinates required"}), 400
+
+#     try:
+#         response = requests.get(OWM_API_URL, params=params)
+#         weather_data = response.json()
+
+#         # 👇 --- YAHAN SE NAYA CODE ADD KAREIN --- 👇
+#         print("\n" + "="*50)
+#         print("🚨 OPENWEATHER RAW API DATA 🚨")
+#         import json # Agar upar import nahi hai toh
+#         print(json.dumps(weather_data, indent=4)) # Isse data sundar (formatted) dikhega
+#         print("="*50 + "\n")
+#         # 👆 --- YAHAN TAK --- 👆
+        
+#         if weather_data.get('cod') != 200:
+#             return jsonify({"error": weather_data.get('message', 'Location not found')}), 404
+        
+#         sys_data = weather_data.get('sys', {})
+#         main = weather_data.get('main', {})
+#         wind = weather_data.get('wind', {})
+#         desc = weather_data.get('weather', [{}])[0]
+
+#         ist_offset = timedelta(hours=5, minutes=30)
+#         def format_time(ts):
+#             if not ts: return 'N/A'
+#             return datetime.fromtimestamp(ts + weather_data.get('timezone', 0), timezone.utc).astimezone(timezone(ist_offset)).strftime('%I:%M %p')
+
+#         simplified_data = {
+#             "city": weather_data.get('name', 'N/A'),
+#             "temperature": main.get('temp'),
+#             "feels_like": main.get('feels_like'),
+#             "humidity": main.get('humidity'),
+#             "description": desc.get('description', 'N/A').capitalize(),
+#             "wind_speed": wind.get('speed'),
+#             "rain_1h": weather_data.get('rain', {}).get('1h', 0),
+#             "sunrise": format_time(sys_data.get('sunrise')),
+#             "sunset": format_time(sys_data.get('sunset')),
+#             "icon_url": f"http://openweathermap.org/img/wn/{desc.get('icon')}@2x.png" if desc.get('icon') else None
+#         }
+
+#         return jsonify({k: v for k, v in simplified_data.items() if v is not None})
+#     except Exception as e:
+#         print(f"Weather Error: {e}")
+#         return jsonify({"error": "Failed to fetch weather data"}), 500
+
+# --- OPEN-METEO WEATHER HELPER FUNCTION ---
+def get_weather_desc_and_icon(wmo_code, is_day):
+    """Open-Meteo WMO codes ko Description aur Icons mein badalna"""
+    day_night = "d" if is_day else "n"
+    
+    weather_mapping = {
+        0: ("Clear sky", f"01{day_night}"),
+        1: ("Mainly clear", f"02{day_night}"),
+        2: ("Partly cloudy", f"03{day_night}"),
+        3: ("Overcast", f"04{day_night}"),
+        45: ("Fog", f"50{day_night}"),
+        48: ("Depositing rime fog", f"50{day_night}"),
+        51: ("Light drizzle", f"09{day_night}"),
+        53: ("Moderate drizzle", f"09{day_night}"),
+        55: ("Dense drizzle", f"09{day_night}"),
+        56: ("Light freezing drizzle", f"09{day_night}"),
+        57: ("Dense freezing drizzle", f"09{day_night}"),
+        61: ("Slight rain", f"10{day_night}"),
+        63: ("Moderate rain", f"10{day_night}"),
+        65: ("Heavy rain", f"10{day_night}"),
+        71: ("Slight snow fall", f"13{day_night}"),
+        75: ("Heavy snow fall", f"13{day_night}"),
+        80: ("Slight rain showers", f"09{day_night}"),
+        81: ("Moderate rain showers", f"09{day_night}"),
+        82: ("Violent rain showers", f"09{day_night}"),
+        95: ("Thunderstorm", f"11{day_night}"),
+        96: ("Thunderstorm with slight hail", f"11{day_night}"),
+        99: ("Thunderstorm with heavy hail", f"11{day_night}"),
+    }
+    
+    return weather_mapping.get(wmo_code, ("Unknown", f"01{day_night}"))
+
+# --- NAYA WEATHER ENDPOINT (OPEN-METEO) ---
 @app.route('/get_weather', methods=['POST'])
 @token_required
 def handle_get_weather():
     data = request.json
-    params = {'appid': OWM_API_KEY, 'units': 'metric'}
-    
-    if data.get('lat') is not None and data.get('lon') is not None:
-        params.update({'lat': data.get('lat'), 'lon': data.get('lon')})
-    elif data.get('city'):
-        params['q'] = data.get('city')
-    else:
-        return jsonify({"error": "City name or coordinates required"}), 400
+    lat = data.get('lat')
+    lon = data.get('lon')
+    city_name = data.get('city')
+    country = "IN" # Default
 
     try:
-        response = requests.get(OWM_API_URL, params=params)
-        weather_data = response.json()
+        # STEP 1: Agar sirf City Name aaya hai, toh uska Lat/Lon nikalo (Geocoding)
+        if not lat or not lon:
+            if not city_name:
+                return jsonify({"error": "City name or coordinates (lat, lon) are required"}), 400
+            
+            geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}&count=1&format=json"
+            geo_response = requests.get(geo_url).json()
+            
+            if "results" not in geo_response or len(geo_response["results"]) == 0:
+                return jsonify({"error": f"Location '{city_name}' not found."}), 404
+                
+            location_data = geo_response["results"][0]
+            lat = location_data["latitude"]
+            lon = location_data["longitude"]
+            city_name = location_data["name"]
+            country = location_data.get("country_code", "Unknown")
+        else:
+            # Agar GPS se direct Lat/Lon aaya hai
+            city_name = city_name or "Your Location"
 
-        # 👇 --- YAHAN SE NAYA CODE ADD KAREIN --- 👇
-        print("\n" + "="*50)
-        print("🚨 OPENWEATHER RAW API DATA 🚨")
-        import json # Agar upar import nahi hai toh
-        print(json.dumps(weather_data, indent=4)) # Isse data sundar (formatted) dikhega
-        print("="*50 + "\n")
-        # 👆 --- YAHAN TAK --- 👆
-        
-        if weather_data.get('cod') != 200:
-            return jsonify({"error": weather_data.get('message', 'Location not found')}), 404
-        
-        sys_data = weather_data.get('sys', {})
-        main = weather_data.get('main', {})
-        wind = weather_data.get('wind', {})
-        desc = weather_data.get('weather', [{}])[0]
-
-        ist_offset = timedelta(hours=5, minutes=30)
-        def format_time(ts):
-            if not ts: return 'N/A'
-            return datetime.fromtimestamp(ts + weather_data.get('timezone', 0), timezone.utc).astimezone(timezone(ist_offset)).strftime('%I:%M %p')
-
-        simplified_data = {
-            "city": weather_data.get('name', 'N/A'),
-            "temperature": main.get('temp'),
-            "feels_like": main.get('feels_like'),
-            "humidity": main.get('humidity'),
-            "description": desc.get('description', 'N/A').capitalize(),
-            "wind_speed": wind.get('speed'),
-            "rain_1h": weather_data.get('rain', {}).get('1h', 0),
-            "sunrise": format_time(sys_data.get('sunrise')),
-            "sunset": format_time(sys_data.get('sunset')),
-            "icon_url": f"http://openweathermap.org/img/wn/{desc.get('icon')}@2x.png" if desc.get('icon') else None
+        # STEP 2: Open-Meteo se Accurate Weather Data nikalo
+        weather_url = "https://api.open-meteo.com/v1/forecast"
+        params = {
+            "latitude": lat,
+            "longitude": lon,
+            "current": "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,surface_pressure,wind_speed_10m",
+            "daily": "temperature_2m_max,temperature_2m_min,sunrise,sunset",
+            "timezone": "auto" # <--- Yeh sabse best feature hai! Direct uss jagah ka time aayega
         }
 
-        return jsonify({k: v for k, v in simplified_data.items() if v is not None})
+        response = requests.get(weather_url, params=params)
+        weather_data = response.json()
+
+        if "error" in weather_data:
+            return jsonify({"error": "Failed to fetch weather from Open-Meteo"}), 500
+
+        # STEP 3: Frontend ke format mein data pack karo
+        current = weather_data["current"]
+        daily = weather_data["daily"]
+
+        # WMO code se description aur icon nikalo
+        desc, icon_code = get_weather_desc_and_icon(current["weather_code"], current["is_day"])
+
+        # Time ko aasan format mein badalna (Jaise: 06:30 AM)
+        def format_time(iso_time_str):
+            if not iso_time_str: return "N/A"
+            dt = datetime.fromisoformat(iso_time_str)
+            return dt.strftime('%I:%M %p')
+
+        simplified_data = {
+            "city": city_name,
+            "country": country,
+            "temperature": current.get("temperature_2m"),
+            "feels_like": current.get("apparent_temperature"),
+            "temp_max": daily.get("temperature_2m_max", [None])[0],
+            "temp_min": daily.get("temperature_2m_min", [None])[0],
+            "humidity": current.get("relative_humidity_2m"),
+            "pressure": current.get("surface_pressure"),
+            "description": desc,
+            "wind_speed": current.get("wind_speed_10m"),
+            "rain_1h": current.get("precipitation"),
+            "clouds": current.get("cloud_cover"),
+            "sunrise": format_time(daily.get("sunrise", [None])[0]),
+            "sunset": format_time(daily.get("sunset", [None])[0]),
+            "icon_url": f"https://openweathermap.org/img/wn/{icon_code}@4x.png" # OpenWeather ke badhiya icons hi use karenge
+        }
+
+        # None (Khali) values hatao taaki Frontend par error na aaye
+        simplified_data = {k: v for k, v in simplified_data.items() if v is not None}
+
+        return jsonify(simplified_data)
+
     except Exception as e:
-        print(f"Weather Error: {e}")
-        return jsonify({"error": "Failed to fetch weather data"}), 500
+        print(f"Open-Meteo Error: {e}")
+        return jsonify({"error": "An internal error occurred while fetching weather."}), 500
 
 
 @app.route('/get_mandi_prices', methods=['POST'])

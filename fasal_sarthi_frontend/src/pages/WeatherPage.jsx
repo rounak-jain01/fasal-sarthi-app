@@ -190,7 +190,7 @@ function WeatherPage() {
                  <DetailItem icon={<LuWind/>} label="weather_wind_speed" value={weatherData.wind_speed} unit="m/s" />
                  <DetailItem icon={<LuDroplet/>} label="weather_humidity" value={weatherData.humidity} unit="%" />
                  <DetailItem icon={<LuGauge/>} label="weather_pressure" value={weatherData.pressure} unit="hPa" />
-                 <DetailItem icon={<LuEye/>} label="weather_visibility" value={weatherData.visibility} unit="km" />
+                 {/* <DetailItem icon={<LuEye/>} label="weather_visibility" value={weatherData.visibility} unit="km" /> */}
                  
                  <DetailItem icon={<LuCloud/>} label="weather_clouds" value={weatherData.clouds} unit="%" />
                  {weatherData.rain_1h > 0 && (
