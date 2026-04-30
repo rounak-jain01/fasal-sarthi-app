@@ -384,6 +384,14 @@ def handle_get_weather():
     try:
         response = requests.get(OWM_API_URL, params=params)
         weather_data = response.json()
+
+        # 👇 --- YAHAN SE NAYA CODE ADD KAREIN --- 👇
+        print("\n" + "="*50)
+        print("🚨 OPENWEATHER RAW API DATA 🚨")
+        import json # Agar upar import nahi hai toh
+        print(json.dumps(weather_data, indent=4)) # Isse data sundar (formatted) dikhega
+        print("="*50 + "\n")
+        # 👆 --- YAHAN TAK --- 👆
         
         if weather_data.get('cod') != 200:
             return jsonify({"error": weather_data.get('message', 'Location not found')}), 404
