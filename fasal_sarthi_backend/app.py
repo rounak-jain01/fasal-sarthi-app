@@ -348,7 +348,7 @@ def handle_chat():
 
         # API Call to Groq
         headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Authorization": f"Bearer {GROQ_API_KEY.strip()}", 
             "Content-Type": "application/json"
         }
         payload = {
