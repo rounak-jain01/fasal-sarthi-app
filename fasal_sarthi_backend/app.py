@@ -1,32 +1,36 @@
 import os
 import io
+import json
 import threading
+import requests
+import joblib
 import numpy as np
+import pandas as pd
+import tensorflow as tf
+from datetime import datetime, timezone, timedelta
+from functools import wraps
+from PIL import Image
+
+# Flask & Third-party
 from flask import Flask, request, jsonify, g
 from flask_cors import CORS
-from keras import layers, models, applications
-import tensorflow as tf
-from keras.applications import EfficientNetB3
-from keras.layers import Input, GlobalAveragePooling2D, Dense, Dropout
-from keras import Model
-from PIL import Image
-import requests  #Direct API Calls for Gemini and Weather
-import json
-import joblib
-from datetime import datetime, timezone, timedelta
-import pandas as pd # For handling categorical features
-from sklearn.preprocessing import LabelEncoder # Although we load it, good to import
 from dotenv import load_dotenv
-# Supabase library aur decorator ke liye imports
 from supabase import create_client, Client
-from functools import wraps
-
-load_dotenv() # Load environment variables from .env file like API keys
 
 # Suppress TensorFlow warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-# Supabase Client ko initialize karna (service_role key se)
+""" =====================================================================
+    SECTION 1: APP CONFIGURATION & ENVIRONMENT SETUP
+====================================================================="""
+load_dotenv() # Load environment variables from .env file
+
+app = Flask(__name__)
+CORS(app)
+
+""" =====================================================================
+    SECTION 2: SUPABASE DATABASE & AUTHENTICATION
+====================================================================="""
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 supabase: Client = None
@@ -35,33 +39,46 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
     print("CRITICAL ERROR: SUPABASE_URL and SUPABASE_SERVICE_KEY not set in .env!")
 else:
     try:
-        supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
         print("✅ Supabase service client initialized successfully.")
     except Exception as e:
         print(f"CRITICAL ERROR: Failed to initialize Supabase client: {e}")
-# [--- END SUPABASE ---]
 
-# --- 1. MODEL BUILDING LOGIC (Aapka code) --- 
-# def create_model(num_classes=19, image_size=(300, 300)):
-#     base_model = EfficientNetB3(
-#         input_shape=(image_size[0], image_size[1], 3),
-#         include_top=False,
-#         weights=None
-#     )
-#     base_model.trainable = False
-#     inputs = Input(shape=(image_size[0], image_size[1], 3))
-#     x = base_model(inputs, training=False)
-#     x = GlobalAveragePooling2D()(x)
-#     x = Dense(1024, activation='relu')(x)
-#     x = Dropout(0.5)(x)
-#     predictions = Dense(num_classes, activation='softmax')(x)
-#     model = Model(inputs=inputs, outputs=predictions)
-#     return model
+def token_required(f):
+    """Gatekeeper: Checks for valid Supabase JWT token in headers."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not supabase:
+            return jsonify({"error": "Authentication system is not configured."}), 503
 
-# --- 2. MODEL LOADING ---
-# MODEL_WEIGHTS_PATH = 'FasalSarthi_Full_Model.h5'
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return jsonify({"error": "Authorization header missing."}), 401
+
+        parts = auth_header.split()
+        if len(parts) != 2 or parts[0].lower() != 'bearer':
+            return jsonify({"error": "Invalid Authorization header format."}), 401
+        
+        jwt_token = parts[1]
+
+        try:
+            user_response = supabase.auth.get_user(jwt_token)
+            user = user_response.user
+            if not user:
+                return jsonify({"error": "Invalid or expired token."}), 401
+            g.user = user
+        except Exception as e:
+            print(f"Token verification error: {e}")
+            return jsonify({"error": "Token verification failed. Invalid or expired token."}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+""" =====================================================================
+    SECTION 3: MACHINE LEARNING MODELS INITIALIZATION
+====================================================================="""
+# --- 3.1 Disease Prediction Model (Lazy Load for efficiency) ---
 TFLITE_MODEL_PATH = 'FasalSarthi_Full_Model.tflite'
-IMAGE_SIZE = (300, 300)
 CLASS_NAMES = [
     'Corn__Blight', 'Corn__Common_Rust', 'Corn___healthy', 'Corn__gray_Leaf_Spot', 
     'Pepper__bell___Bacterial_spot', 'Pepper__bell___healthy', 'Potato___Early_blight', 
@@ -71,525 +88,298 @@ CLASS_NAMES = [
     'Tomato__Target_Spot', 'Tomato__Tomato_YellowLeaf__Curl_Virus', 
     'Tomato__Tomato_mosaic_virus', 'Tomato_healthy'
 ]
-# print("Creating model structure...")
-# model = create_model(num_classes=len(CLASS_NAMES), image_size=IMAGE_SIZE)
-# print("Model structure created.")
-# print(f"Loading weights from: {MODEL_WEIGHTS_PATH}")
-# model.load_weights(MODEL_WEIGHTS_PATH)
-# print("Model weights loaded successfully! Server is ready.")
-# Global variable for the model, initially None
-disease_interpreter = None
-model_loading_error = None # To store loading error
-interpreter_lock = threading.Lock()  # For thread-safety when invoking interpreter
 
-# Function to load the model when needed
+disease_interpreter = None
+model_loading_error = None
+interpreter_lock = threading.Lock()
+
 def get_disease_interpreter():
     global disease_interpreter, model_loading_error
     if disease_interpreter is not None: return disease_interpreter
     if model_loading_error is not None: return None
 
-    print("Attempting to load TFLite model interpreter (Lazy Load)...")
+    print("Attempting to load TFLite model interpreter...")
     try:
-        # Use tf.lite.Interpreter (works for both tflite-runtime and full tensorflow)
         disease_interpreter = tf.lite.Interpreter(model_path=TFLITE_MODEL_PATH)
-        disease_interpreter.allocate_tensors() # IMPORTANT: Allocate memory
-        print("✅ TFLite interpreter loaded successfully ON DEMAND.")
+        disease_interpreter.allocate_tensors()
+        print("✅ TFLite interpreter loaded successfully.")
         return disease_interpreter
-    except ValueError as e:
-         print(f"CRITICAL ERROR: Failed to load TFLite model '{TFLITE_MODEL_PATH}'. Corrupted or missing? Error: {e}")
-         model_loading_error = e
-         disease_interpreter = None
-         return None
     except Exception as e:
         print(f"CRITICAL ERROR loading TFLite interpreter: {e}")
-        import traceback
-        traceback.print_exc()
         model_loading_error = e
-        disease_interpreter = None
         return None
-# --- 3. FLASK APP LOGIC ---
 
-app = Flask(__name__)
-CORS(app)
-
-
-
-# [--- SUPABASE AUTH ADDITION (4) ---]
-# Yeh hamara "Gatekeeper" (Decorator) hai.
-# Yeh har protected route se pehle chalega.
-def token_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check karein ki Supabase client chal raha hai
-        if not supabase:
-            return jsonify({"error": "Authentication system is not configured."}), 503
-
-        # 1. Request Header se 'Authorization' token nikaalein
-        auth_header = request.headers.get('Authorization')
-        if not auth_header:
-            return jsonify({"error": "Authorization header missing."}), 401
-
-        # Header format "Bearer <token>" hota hai
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != 'bearer':
-            return jsonify({"error": "Invalid Authorization header format. Must be 'Bearer <token>'."}), 401
-        
-        jwt_token = parts[1]
-
-        # 2. Token ko Supabase se verify karein
-        try:
-            # 'get_user' function token ko verify karta hai.
-            # Agar token galat ya expired hoga, toh yeh error dega.
-            user_response = supabase.auth.get_user(jwt_token)
-            user = user_response.user
-            
-            if not user:
-                return jsonify({"error": "Invalid or expired token."}), 401
-            
-            # User ki info ko 'g' (global context) mein save kar dein
-            g.user = user
-            # print(f"Auth successful for user: {user.id}")
-
-        except Exception as e:
-            print(f"Token verification error: {e}")
-            return jsonify({"error": "Token verification failed. Invalid or expired token."}), 401
-        
-        # 3. Sab theek hai! Route ko aage badhne dein
-        return f(*args, **kwargs)
-    return decorated_function
-# [--- END SUPABASE ---]
-
-
-@app.route('/', methods=['GET'])
-def home():
-    return "Fasal Sarthi Backend Server is running!"
-
-@app.route('/predict_disease', methods=['POST'])
-@token_required
-def handle_prediction():
-    # Get the interpreter
-    interpreter = get_disease_interpreter()
-    if interpreter is None:
-         error_msg = str(model_loading_error) if model_loading_error else "Disease model could not be loaded."
-         return jsonify({"error": f"Model loading failed: {error_msg}"}), 503
-
-    # Get input/output details
-    try:
-        input_details = interpreter.get_input_details()
-        output_details = interpreter.get_output_details()
-    except Exception as e:
-         print(f"Error getting interpreter details: {e}")
-         return jsonify({"error": "Failed to get model input/output details."}), 500
-
-    # --- File handling (same as before) ---
-    if 'file' not in request.files: return jsonify({"error": "No file part key found"}), 400
-    file = request.files.get('file')
-    if not file or file.filename == '': return jsonify({"error": "No selected file"}), 400
-
-    try:
-        # --- Preprocessing (Ensure dtype and shape match model input) ---
-        image_bytes = file.read()
-        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-
-        # Get target shape from model details
-        input_shape = input_details[0]['shape'] # e.g., [1, 300, 300, 3]
-        target_height = input_shape[1]
-        target_width = input_shape[2]
-        img = img.resize((target_width, target_height))
-
-        img_array = tf.keras.preprocessing.image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-
-        # Ensure input dtype matches
-        input_dtype = input_details[0]['dtype'] # e.g., np.float32 or np.uint8
-        img_array = img_array.astype(input_dtype)
-
-        # Handle normalization/quantization
-        # Check if the model expects input between 0-1, -1 to 1, or 0-255 (quantized)
-        input_scale, input_zero_point = input_details[0].get('quantization', (1.0, 0)) # Default for float models
-
-        if input_dtype == np.float32 and input_scale == 1.0 and input_zero_point == 0:
-             # Common case: Normalize float input to 0-1
-             img_array = img_array / 255.0
-        elif input_dtype == np.uint8:
-             # Quantized model - no normalization needed if input is already 0-255
-             pass # Assuming img_to_array gives 0-255
-        # Add other normalization logic if needed (e.g., /127.5 - 1.0 for -1 to 1)
-
-        # --- Prediction using TFLite Interpreter ---
-        interpreter.set_tensor(input_details[0]['index'], img_array)
-        interpreter.invoke() # Run inference
-        predictions = interpreter.get_tensor(output_details[0]['index'])
-
-        # Dequantize output if necessary
-        output_scale, output_zero_point = output_details[0].get('quantization', (1.0, 0))
-        if output_details[0]['dtype'] == np.uint8: # If output is quantized
-            predictions = (predictions.astype(np.float32) - output_zero_point) * output_scale
-
-        # --- Post-processing (same as before) ---
-        predicted_class_index = np.argmax(predictions[0])
-        # Add safety check for index out of bounds
-        if predicted_class_index >= len(CLASS_NAMES):
-             print(f"ERROR: Predicted index {predicted_class_index} out of bounds for CLASS_NAMES (len {len(CLASS_NAMES)})")
-             return jsonify({"error": "Model prediction resulted in invalid class index."}), 500
-        predicted_class_name = CLASS_NAMES[predicted_class_index]
-        confidence = float(np.max(predictions[0])) # Note: Confidence might need adjustment after dequantization
-        return jsonify({
-            "predicted_disease": predicted_class_name,
-            "confidence": f"{confidence * 100:.2f}%"
-        })
-
-    except Exception as e:
-        print(f"Prediction error with TFLite model: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Error processing image with TFLite model"}), 500
-
-''''--------------------------- CROP RECOMMENDATION MODEL -----------------------------------------'''
-    
-# --- 4. CROP RECOMMENDATION MODEL LOADING ---
+# --- 3.2 Crop Recommendation Model ---
 CROP_MODEL_STACKING_PATH = 'best_stacking_model_final.joblib'
 CROP_SCALER_PATH = 'scaler_final.joblib'
 CROP_ENCODER_FINAL_PATH = 'encoder_final.joblib'
 
-# --- FINAL FEATURE LIST & CATEGORICAL OPTIONS (from Colab output) ---
-# The exact 25 features the model expects IN ORDER
-# NOTE: The numerical features must still match the scaler's input order for scaling step
 CROP_FULL_FEATURE_NAMES = [
-    'soil_ph', 'nitrogen_kg_ha', 'phosphorus_kg_ha', 'potassium_kg_ha', 'annual_rainfall_mm', 'avg_temp_c', 'avg_humidity_pct', # 7 Numerical
-    'soil_type_Black (Vertisol)', 'soil_type_Laterite', 'soil_type_Loamy', 'soil_type_Red', 'soil_type_Sandy', # 5 Soil Types (Missing Alluvial?)
-    'irrigation_type_Drip', 'irrigation_type_Groundwater', 'irrigation_type_Mixed', 'irrigation_type_Rainfed', 'irrigation_type_Sprinkler', # 5 Irrigation Types (Missing Canal, Tank?)
-    'previous_crop_Dal', 'previous_crop_Fallow', 'previous_crop_Ganna', 'previous_crop_Makka', 'previous_crop_Moongfali', 'previous_crop_Rice', 'previous_crop_Sarson', 'previous_crop_Wheat' # 8 Previous Crops
+    'soil_ph', 'nitrogen_kg_ha', 'phosphorus_kg_ha', 'potassium_kg_ha', 'annual_rainfall_mm', 'avg_temp_c', 'avg_humidity_pct',
+    'soil_type_Black (Vertisol)', 'soil_type_Laterite', 'soil_type_Loamy', 'soil_type_Red', 'soil_type_Sandy',
+    'irrigation_type_Drip', 'irrigation_type_Groundwater', 'irrigation_type_Mixed', 'irrigation_type_Rainfed', 'irrigation_type_Sprinkler',
+    'previous_crop_Dal', 'previous_crop_Fallow', 'previous_crop_Ganna', 'previous_crop_Makka', 'previous_crop_Moongfali', 'previous_crop_Rice', 'previous_crop_Sarson', 'previous_crop_Wheat'
 ]
-
-# Numerical features list (for scaling step - order must match scaler)
 CROP_NUMERICAL_FEATURES = CROP_FULL_FEATURE_NAMES[:7]
-
-# Categorical options derived *only* from the model's feature names
-# Use sorted lists for consistency when creating OHE columns later
-POSSIBLE_SOIL_TYPES = sorted(['Black (Vertisol)', 'Laterite', 'Loamy', 'Red', 'Sandy'])
-POSSIBLE_IRRIGATION_TYPES = sorted(['Drip', 'Groundwater', 'Mixed', 'Rainfed', 'Sprinkler'])
-POSSIBLE_PREVIOUS_CROPS = sorted(['Dal', 'Fallow', 'Ganna', 'Makka', 'Moongfali', 'Rice', 'Sarson', 'Wheat'])
 
 try:
     crop_model_stacking = joblib.load(CROP_MODEL_STACKING_PATH)
     crop_scaler = joblib.load(CROP_SCALER_PATH)
     crop_encoder_final = joblib.load(CROP_ENCODER_FINAL_PATH)
-
-    # Validate scaler features
-    scaler_features = getattr(crop_scaler, 'feature_names_in_', CROP_NUMERICAL_FEATURES)
-    if list(scaler_features) != CROP_NUMERICAL_FEATURES:
-         print(f"CRITICAL WARNING: Scaler features {list(scaler_features)} do not match expected numerical {CROP_NUMERICAL_FEATURES}. Scaling might be incorrect!")
-    else:
-         print("Scaler features validated.")
-
-    # Validate model features count
-    model_features_count = getattr(crop_model_stacking, 'n_features_in_', None)
-    if model_features_count and model_features_count != len(CROP_FULL_FEATURE_NAMES):
-        print(f"CRITICAL WARNING: Model expects {model_features_count} features, but calculated list has {len(CROP_FULL_FEATURE_NAMES)}!")
-    elif not model_features_count:
-         print("Warning: Could not read n_features_in_ from model.")
-
-    print(f"Model expects features in this order: {CROP_FULL_FEATURE_NAMES}")
-    print("Crop Recommendation (Stacking) model, scaler, and encoder loaded.")
-
+    print("✅ Crop Recommendation models loaded successfully.")
 except Exception as e:
-    crop_full_feature_names = []
+    print(f"❌ Error loading Crop Recommendation model: {e}")
+    crop_model_stacking = crop_scaler = crop_encoder_final = None
 
-
-# --- FINAL UPDATE: CROP RECOMMENDATION ENDPOINT (/recommend_crop) ---
-@app.route('/recommend_crop', methods=['POST'])
-@token_required
-# @token_required
-def handle_crop_recommendation():
-    if not crop_model_stacking or not crop_scaler or not crop_encoder_final or len(CROP_FULL_FEATURE_NAMES) != 25: # Check for 25
-        return jsonify({"error": "Crop Recommendation model setup incorrect or not loaded."}), 500
-
-    data = request.json
-    print(f"Received data for crop rec: {data}")
-
-    try:
-        # 1. Prepare Input DataFrame matching the full expected features
-        input_df = pd.DataFrame(columns=CROP_FULL_FEATURE_NAMES, index=[0]).fillna(0.0)
-
-        # 2. Extract and Validate Numerical Features
-        numerical_values_dict = {}
-        for feature_name in CROP_NUMERICAL_FEATURES:
-            if feature_name not in data: raise KeyError(f"Missing: {feature_name}")
-            value = float(data[feature_name])
-            input_df.loc[0, feature_name] = value # Store raw first
-            numerical_values_dict[feature_name] = value
-
-        # 3. Scale Numerical Features
-        numerical_df_for_scaling = pd.DataFrame([numerical_values_dict], columns=CROP_NUMERICAL_FEATURES)
-        scaled_numerical_values = crop_scaler.transform(numerical_df_for_scaling)
-        input_df[CROP_NUMERICAL_FEATURES] = scaled_numerical_values # Put scaled back
-
-        # 4. Extract and One-Hot Encode Categorical Features using EXACT model column names
-        # Soil Type
-        soil_type = data.get('soil_type') # e.g., 'Black (Vertisol)'
-        if not soil_type: raise KeyError("Missing: soil_type")
-        soil_col_name = f'soil_type_{soil_type}'
-        if soil_col_name in input_df.columns: input_df.loc[0, soil_col_name] = 1.0
-        else: raise ValueError(f"Unknown/Unsupported soil_type: {soil_type}")
-
-        # Irrigation Type
-        irrigation_type = data.get('irrigation_type') # e.g., 'Groundwater'
-        if not irrigation_type: raise KeyError("Missing: irrigation_type")
-        irrigation_col_name = f'irrigation_type_{irrigation_type}'
-        if irrigation_col_name in input_df.columns: input_df.loc[0, irrigation_col_name] = 1.0
-        else: raise ValueError(f"Unknown/Unsupported irrigation_type: {irrigation_type}")
-
-        # Previous Crop
-        previous_crop = data.get('previous_crop') # e.g., 'Wheat'
-        if not previous_crop: raise KeyError("Missing: previous_crop")
-        previous_crop_col_name = f'previous_crop_{previous_crop}'
-        if previous_crop_col_name in input_df.columns:
-            input_df.loc[0, previous_crop_col_name] = 1.0
-        else:
-            # Handle crops not explicitly in the model's feature list (treat as 'Other'/all zeros)
-            print(f"Warning: Received previous_crop '{previous_crop}' not in model features, treating as 'Other'.")
-            # If model strictly requires one of the known crops, raise ValueError instead.
-
-        # 5. Ensure final DataFrame has the correct column order (already ensured by DataFrame creation)
-        input_final = input_df[CROP_FULL_FEATURE_NAMES] # Re-apply order just to be safe
-        print(f"Input shape to model: {input_final.shape}") # Should be (1, 25)
-
-        # 6. Make Prediction
-        prediction_encoded = crop_model_stacking.predict(input_final)
-        predicted_crop_name = crop_encoder_final.inverse_transform(prediction_encoded)
-
-        print(f"Prediction successful: {predicted_crop_name[0]}")
-        return jsonify({"recommended_crop": predicted_crop_name[0]})
-
-    except KeyError as e: return jsonify({"error": f"Missing input feature: {e}"}), 400
-    except ValueError as e: return jsonify({"error": f"Invalid input value: {e}"}), 400
-    except Exception as e:
-        print(f"Error during crop recommendation: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": "Failed to recommend crop due to an internal error."}), 500
-
-
-# ... (Existing model loading code for Disease, CropRec) ...
-
-# --- 8. FERTILIZER RECOMMENDATION MODEL LOADING ---
+# --- 3.3 Fertilizer Recommendation Model ---
 FERT_MODEL_PATH = 'random_forest_model.joblib'
 FERT_COLUMNS_PATH = 'model_columns.joblib'
 FERT_ENCODER_PATH = 'label_encoder.joblib'
 
 try:
     fert_model = joblib.load(FERT_MODEL_PATH)
-    fert_model_columns = joblib.load(FERT_COLUMNS_PATH) # Load the expected columns
+    fert_model_columns = joblib.load(FERT_COLUMNS_PATH)
     fert_encoder = joblib.load(FERT_ENCODER_PATH)
-    print("Fertilizer Recommendation model, columns, and encoder loaded successfully.")
-except FileNotFoundError as e:
-    print(f"Error loading Fertilizer model file: {e}. Make sure joblib files are in the correct folder.")
-    fert_model = None
-    fert_model_columns = None
-    fert_encoder = None
+    print("✅ Fertilizer Recommendation models loaded successfully.")
 except Exception as e:
-    print(f"Error loading Fertilizer Recommendation model: {e}")
-    fert_model = None
-    fert_model_columns = None
-    fert_encoder = None
+    print(f"❌ Error loading Fertilizer Recommendation model: {e}")
+    fert_model = fert_model_columns = fert_encoder = None
 
-# ... (Existing Flask App logic, routes for /, /predict_disease, /sarthi_ai_chat, /recommend_crop, /get_weather) ...
+""" =====================================================================
+    SECTION 4: EXTERNAL APIs (GROQ, WEATHER, MANDI)
+====================================================================="""
+# Groq AI Setup
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.1-8b-instant" # Fast and smart model for chat
 
-# --- 9. NEW FERTILIZER RECOMMENDATION ENDPOINT ---
+if not GROQ_API_KEY: print("⚠️ WARNING: GROQ_API_KEY not set!")
+else: print("✅ Groq AI API configured.")
+
+# Weather API Setup
+OWM_API_KEY = os.getenv('OWM_API_KEY')
+OWM_API_URL = "https://api.openweathermap.org/data/2.5/weather"
+if not OWM_API_KEY: print("⚠️ WARNING: OWM_API_KEY not set!")
+
+# Mandi API Setup
+DATA_GOV_API_KEY = os.getenv('DATA_GOV_API_KEY')
+MANDI_API_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+if not DATA_GOV_API_KEY: print("⚠️ WARNING: DATA_GOV_API_KEY not set!")
+
+
+""" =====================================================================
+    SECTION 5: API ENDPOINTS / ROUTES
+====================================================================="""
+
+@app.route('/', methods=['GET'])
+def home():
+    return jsonify({"status": "success", "message": "Fasal Sarthi Backend Server is running!"})
+
+@app.route('/predict_disease', methods=['POST'])
+@token_required
+def handle_prediction():
+    interpreter = get_disease_interpreter()
+    if interpreter is None:
+         return jsonify({"error": "Disease model could not be loaded."}), 503
+
+    if 'file' not in request.files: return jsonify({"error": "No file part key found"}), 400
+    file = request.files.get('file')
+    if not file or file.filename == '': return jsonify({"error": "No selected file"}), 400
+
+    try:
+        input_details = interpreter.get_input_details()
+        output_details = interpreter.get_output_details()
+
+        # Image Preprocessing
+        image_bytes = file.read()
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        
+        target_shape = input_details[0]['shape']
+        img = img.resize((target_shape[2], target_shape[1]))
+
+        img_array = tf.keras.preprocessing.image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0).astype(input_details[0]['dtype'])
+
+        # Normalization
+        if input_details[0]['dtype'] == np.float32:
+             img_array = img_array / 255.0
+
+        # Run Inference (Thread-safe)
+        with interpreter_lock:
+            interpreter.set_tensor(input_details[0]['index'], img_array)
+            interpreter.invoke() 
+            predictions = interpreter.get_tensor(output_details[0]['index']).copy()
+
+        # Post-processing
+        predicted_class_index = np.argmax(predictions[0])
+        predicted_class_name = CLASS_NAMES[predicted_class_index]
+        confidence = float(np.max(predictions[0])) 
+        
+        return jsonify({
+            "predicted_disease": predicted_class_name,
+            "confidence": f"{confidence * 100:.2f}%"
+        })
+
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        return jsonify({"error": "Error processing image"}), 500
+
+
+@app.route('/recommend_crop', methods=['POST'])
+@token_required
+def handle_crop_recommendation():
+    if not crop_model_stacking:
+        return jsonify({"error": "Crop Recommendation model not loaded."}), 500
+
+    data = request.json
+    try:
+        input_df = pd.DataFrame(columns=CROP_FULL_FEATURE_NAMES, index=[0]).fillna(0.0)
+        numerical_values_dict = {}
+
+        for feature in CROP_NUMERICAL_FEATURES:
+            if feature not in data: raise KeyError(f"Missing: {feature}")
+            numerical_values_dict[feature] = float(data[feature])
+
+        # Scale Numerical Features
+        scaled_num_vals = crop_scaler.transform(pd.DataFrame([numerical_values_dict], columns=CROP_NUMERICAL_FEATURES))
+        input_df[CROP_NUMERICAL_FEATURES] = scaled_num_vals 
+
+        # One-Hot Encode Categorical
+        cat_mappings = {
+            'soil_type': data.get('soil_type'),
+            'irrigation_type': data.get('irrigation_type'),
+            'previous_crop': data.get('previous_crop')
+        }
+
+        for cat_type, cat_val in cat_mappings.items():
+            if not cat_val: raise KeyError(f"Missing: {cat_type}")
+            col_name = f'{cat_type}_{cat_val}'
+            if col_name in input_df.columns:
+                input_df.loc[0, col_name] = 1.0
+
+        input_final = input_df[CROP_FULL_FEATURE_NAMES]
+        prediction_encoded = crop_model_stacking.predict(input_final)
+        predicted_crop_name = crop_encoder_final.inverse_transform(prediction_encoded)
+
+        return jsonify({"recommended_crop": predicted_crop_name[0]})
+
+    except KeyError as e: return jsonify({"error": f"Missing input feature: {e}"}), 400
+    except Exception as e:
+        print(f"Crop Rec Error: {e}")
+        return jsonify({"error": "Failed to recommend crop"}), 500
+
+
 @app.route('/recommend_fertilizer', methods=['POST'])
 @token_required
 def handle_fertilizer_recommendation():
-    if not fert_model or not fert_model_columns or not fert_encoder:
-        return jsonify({"error": "Fertilizer Recommendation model is not loaded."}), 500
+    if not fert_model:
+        return jsonify({"error": "Fertilizer model is not loaded."}), 500
 
     data = request.json
-
-    # Expected numerical features from model_columns.joblib (check names carefully)
-    # Example names, adjust based on your actual columns:
     num_features = ['Temparature', 'Humidity', 'Moisture', 'Nitrogen', 'Potassium', 'Phosphorous']
     
-    # Expected categorical features (from model_columns.joblib)
-    soil_prefix = 'Soil_Type_'
-    crop_prefix = 'Crop_Type_'
-
     try:
-        # Create a dictionary for the input, starting with numerical values
         input_data = {feat: float(data[feat]) for feat in num_features if feat in data}
+        soil_type, crop_type = data.get('Soil_Type'), data.get('Crop_Type')
 
-        # Get the Soil Type and Crop Type from input
-        soil_type = data.get('Soil_Type')
-        crop_type = data.get('Crop_Type')
+        if not soil_type or not crop_type: raise KeyError("Missing Soil_Type or Crop_Type")
 
-        if not soil_type or not crop_type:
-             raise KeyError("Missing Soil_Type or Crop_Type in input")
-
-        # --- One-Hot Encode Categorical Features ---
-        # Create a DataFrame with columns matching the trained model, initialized to 0
         input_df = pd.DataFrame(columns=fert_model_columns, index=[0]).fillna(0)
-
-        # Fill in the numerical values we received
         for key, value in input_data.items():
-            if key in input_df.columns:
-                 input_df.loc[0, key] = value
+            if key in input_df.columns: input_df.loc[0, key] = value
 
-        # Set the correct Soil_Type column to 1
-        soil_col_name = soil_prefix + soil_type
-        if soil_col_name in input_df.columns:
-            input_df.loc[0, soil_col_name] = 1
-        else:
-             raise ValueError(f"Unknown Soil_Type: {soil_type}")
-
-        # Set the correct Crop_Type column to 1
-        crop_col_name = crop_prefix + crop_type
-        if crop_col_name in input_df.columns:
-            input_df.loc[0, crop_col_name] = 1
-        else:
-            raise ValueError(f"Unknown Crop_Type: {crop_type}")
-            
-        # Ensure the order matches exactly (should already match if created correctly)
-        input_final = input_df[fert_model_columns]
-
-        # --- Make Prediction ---
-        prediction_encoded = fert_model.predict(input_final)
+        soil_col, crop_col = f'Soil_Type_{soil_type}', f'Crop_Type_{crop_type}'
         
-        # Decode the prediction using the label encoder
+        if soil_col in input_df.columns: input_df.loc[0, soil_col] = 1
+        if crop_col in input_df.columns: input_df.loc[0, crop_col] = 1
+            
+        prediction_encoded = fert_model.predict(input_df[fert_model_columns])
         predicted_fertilizer = fert_encoder.inverse_transform(prediction_encoded)
 
-        return jsonify({
-            "recommended_fertilizer": predicted_fertilizer[0]
-        })
+        return jsonify({"recommended_fertilizer": predicted_fertilizer[0]})
 
-    except KeyError as e:
-        print(f"Missing input value: {e}")
-        return jsonify({"error": f"Missing input value: {e}"}), 400
-    except ValueError as e:
-         print(f"Invalid input value: {e}")
-         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        print(f"Error during fertilizer recommendation: {e}")
-        return jsonify({"error": "Failed to recommend fertilizer"}), 500
+        print(f"Fertilizer Rec Error: {e}")
+        return jsonify({"error": str(e)}), 400
 
 
-
-# --- CHATBOT SETUP (Direct API Call) ---
-# --- CHATBOT SETUP ---
-# Load key from environment variable
-GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-if not GOOGLE_API_KEY:
-    print("ERROR: GOOGLE_API_KEY environment variable not set!")
-    # Optionally exit or handle the error
-# Hum 'v1beta' URL ka use karenge (jo API keys support karta hai)
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={GOOGLE_API_KEY}"
-
-# chat_prompt_context = """
-# तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की खेती-बाड़ी (फार्मिंग) में मदद करते हो।
-# तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए।
-# तुम्हें हमेशा, बिना किसी अपवाद के, केवल और केवल हिंदी (देवनागरी लिपि) में ही जवाब देना है। अंग्रेजी शब्दों का प्रयोग केवल तभी करो जब कोई तकनीकी शब्द हिंदी में उपलब्ध न हो।
-# अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो कि 'मैं सिर्फ खेती से जुड़े सवालों का जवाब दे सकता हूँ।'
-# वार्तालाप के पिछले संदेशों को ध्यान में रखो।
-# """
-print("Gemini AI Chatbot (Direct API) is ready.")
-
-
-# --- CHATBOT ENDPOINT (Direct API Call) ---
 @app.route('/sarthi_ai_chat', methods=['POST'])
 @token_required
 def handle_chat():
-    if not GOOGLE_API_KEY: return jsonify({"error": "Chatbot API key not configured."}), 503
+    if not GROQ_API_KEY: return jsonify({"error": "Groq API key not configured."}), 503
 
     data = request.json
     user_message = data.get('message')
     language_code = data.get('language', 'hi')
     chat_history = data.get('history', [])
-    # Get history from frontend (expecting a list of {'role': 'user'/'model', 'parts': [{'text': '...'}]})
-    history = data.get('history', []) # Default to empty list if not provided
 
-    if not user_message: 
-        return jsonify({"error": "No message provided"}), 400
+    if not user_message: return jsonify({"error": "No message provided"}), 400
 
     try:
-        # 2. Language ke hisaab se System Prompt (instruction) taiyaar karein
+        # Generate System Prompt
         if language_code == 'hi':
-            system_prompt = """
-                तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की मदद करते हो।
-                तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए।
-                तुम्हें हमेशा, बिना किसी अपवाद के, केवल और केवल हिंदी (देवनागरी लिपि) में ही जवाब देना है।
-                अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो कि 'मैं सिर्फ खेती से जुड़े सवालों का जवाब दे सकता हूँ।'
-            """
-        else: # Default to English
-            system_prompt = """
-                You are 'Fasal Sarthi', an expert AI assistant who helps farmers with agriculture.
-                You must respond *only* in English.
-                Your answers should always be simple, helpful, and related to farming.
-                If asked a non-farming question, politely decline, stating you only answer farming-related questions.
-            """
+            system_prompt = """तुम 'फसल सारथी' हो, एक विशेषज्ञ AI सहायक जो केवल हिंदी में किसानों की मदद करते हो। 
+            तुम्हारे जवाब हमेशा सरल, मददगार और खेती से संबंधित होने चाहिए। 
+            अगर कोई खेती से अलग सवाल पूछे, तो विनम्रता से मना कर दो।"""
+        else:
+            system_prompt = """You are 'Fasal Sarthi', an expert AI assistant who helps farmers with agriculture. 
+            You must respond *only* in English. Your answers should be simple, helpful, and related to farming."""
 
-        # [--- YEH HAI FIX ---]
-        # Hum 'contents' list ko system prompt se shuru karenge
-        contents = [{"role": "user", "parts": [{"text": system_prompt}]}]
+        # Format Messages for Groq (OpenAI format)
+        messages = [{"role": "system", "content": system_prompt}]
         
-        # Ab, frontend se aayi poori history ko add karenge
         for msg in chat_history:
-            # Frontend 'user'/'bot' bhejta hai, Gemini 'user'/'model' chahta hai
-            api_role = "user" if msg['role'] == "user" else "model"
-            contents.append({"role": api_role, "parts": [{"text": msg['message']}]})
-        
-        # Aakhir mein, naya sawaal (user_message) add karenge
-        contents.append({"role": "user", "parts": [{"text": user_message}]})
-        # [--- FIX END ---]
+            # Assuming frontend history role is 'user' or 'bot'/'assistant'
+            role = "user" if msg.get('role') == "user" else "assistant"
+            messages.append({"role": role, "content": msg.get('message', '')})
+            
+        messages.append({"role": "user", "content": user_message})
 
-        # Google API ke liye JSON payload
+        # API Call to Groq
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
         payload = {
-            "contents": contents # <-- Ab history bhi ismein hai
+            "model": GROQ_MODEL,
+            "messages": messages,
+            "temperature": 0.7
         }
         
-        headers = {"Content-Type": "application/json"}
-        response = requests.post(GEMINI_API_URL, headers=headers, data=json.dumps(payload))
+        response = requests.post(GROQ_API_URL, headers=headers, json=payload)
+        
+        # --- YEH NAYA CODE ADD KAREIN ---
         if response.status_code != 200:
-            print(f"Error from Google API: {response.text}")
-            raise Exception("Google API returned an error")
+            print("🚨 GROQ API ERROR DETAILED INFO 🚨")
+            print(f"Status Code: {response.status_code}")
+            print(f"Response: {response.text}")
+            return jsonify({"error": f"Groq API Error: {response.status_code}"}), 500
+        # --------------------------------
+        # --------------------------------------------------
+        response.raise_for_status()
 
         response_data = response.json()
-        bot_response = response_data['candidates'][0]['content']['parts'][0]['text']
+        bot_response = response_data['choices'][0]['message']['content']
         
         return jsonify({"response": bot_response})
 
     except Exception as e:
-        print(f"Error during chat generation: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"Groq Chat Error: {e}")
         return jsonify({"error": "Failed to generate AI response"}), 500
 
-# --- 6. WEATHER API SETUP ---
-OWM_API_KEY = os.getenv('OWM_API_KEY')
-if not OWM_API_KEY:
-    print("ERROR: OWM_API_KEY environment variable not set!")
-    # Optionally exit or handle the error
-OWM_API_URL = "https://api.openweathermap.org/data/2.5/weather"
 
-# --- 7. NAYA WEATHER ENDPOINT ---
-# --- 7. NAYA WEATHER ENDPOINT (Updated for Lat/Lon) ---
 @app.route('/get_weather', methods=['POST'])
 @token_required
 def handle_get_weather():
     data = request.json
-    city = data.get('city')
-    lat = data.get('lat')
-    lon = data.get('lon')
-
-    params = {
-        'appid': OWM_API_KEY,
-        'units': 'metric'
-    }
+    params = {'appid': OWM_API_KEY, 'units': 'metric'}
     
-    if lat is not None and lon is not None:
-        params['lat'] = lat
-        params['lon'] = lon
-    elif city:
-        params['q'] = city
+    if data.get('lat') is not None and data.get('lon') is not None:
+        params.update({'lat': data.get('lat'), 'lon': data.get('lon')})
+    elif data.get('city'):
+        params['q'] = data.get('city')
     else:
-        return jsonify({"error": "City name or coordinates (lat, lon) are required"}), 400
+        return jsonify({"error": "City name or coordinates required"}), 400
 
     try:
         response = requests.get(OWM_API_URL, params=params)
@@ -598,162 +388,78 @@ def handle_get_weather():
         if weather_data.get('cod') != 200:
             return jsonify({"error": weather_data.get('message', 'Location not found')}), 404
         
-        # --- NAYA DATA EXTRACTION ---
+        sys_data = weather_data.get('sys', {})
         main = weather_data.get('main', {})
         wind = weather_data.get('wind', {})
-        weather_desc = weather_data.get('weather', [{}])[0]
-        sys_data = weather_data.get('sys', {})
-        clouds = weather_data.get('clouds', {})
-        visibility = weather_data.get('visibility') # Meters
-        
-        # Convert Timestamps (Sunrise/Sunset) to Local Time
-        # Assuming server runs in IST (UTC+5:30) - Adjust if needed
+        desc = weather_data.get('weather', [{}])[0]
+
         ist_offset = timedelta(hours=5, minutes=30)
-        sunrise_ts = sys_data.get('sunrise')
-        sunset_ts = sys_data.get('sunset')
-        sunrise_local = datetime.fromtimestamp(sunrise_ts + weather_data.get('timezone', 0), timezone.utc).astimezone(timezone(ist_offset)).strftime('%I:%M %p') if sunrise_ts else 'N/A'
-        sunset_local = datetime.fromtimestamp(sunset_ts + weather_data.get('timezone', 0), timezone.utc).astimezone(timezone(ist_offset)).strftime('%I:%M %p') if sunset_ts else 'N/A'
-
-        # Convert Wind Direction (Degrees to Cardinal)
-        def deg_to_cardinal(deg):
-            if deg is None: return 'N/A'
-            dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
-            ix = round(deg / (360. / len(dirs)))
-            return dirs[ix % len(dirs)]
-        
-        wind_direction = deg_to_cardinal(wind.get('deg'))
-
-        # Extract Rain (handle missing key)
-        rain_1h = weather_data.get('rain', {}).get('1h', 0) # mm in last 1 hour
+        def format_time(ts):
+            if not ts: return 'N/A'
+            return datetime.fromtimestamp(ts + weather_data.get('timezone', 0), timezone.utc).astimezone(timezone(ist_offset)).strftime('%I:%M %p')
 
         simplified_data = {
             "city": weather_data.get('name', 'N/A'),
-            "country": sys_data.get('country', 'N/A'),
             "temperature": main.get('temp'),
             "feels_like": main.get('feels_like'),
-            "temp_min": main.get('temp_min'), # Naya
-            "temp_max": main.get('temp_max'), # Naya
             "humidity": main.get('humidity'),
-            "pressure": main.get('pressure'), # Naya
-            "description": weather_desc.get('description', 'N/A').capitalize(),
+            "description": desc.get('description', 'N/A').capitalize(),
             "wind_speed": wind.get('speed'),
-            "wind_direction": wind_direction, # Naya
-            "clouds": clouds.get('all'), # Naya (% cloudiness)
-            "rain_1h": rain_1h, # Naya (mm)
-            "visibility": visibility / 1000 if visibility else None, # Naya (Convert meters to km)
-            "sunrise": sunrise_local, # Naya
-            "sunset": sunset_local, # Naya
-            "icon_url": f"http://openweathermap.org/img/wn/{weather_desc.get('icon')}@2x.png" if weather_desc.get('icon') else None
+            "rain_1h": weather_data.get('rain', {}).get('1h', 0),
+            "sunrise": format_time(sys_data.get('sunrise')),
+            "sunset": format_time(sys_data.get('sunset')),
+            "icon_url": f"http://openweathermap.org/img/wn/{desc.get('icon')}@2x.png" if desc.get('icon') else None
         }
-        
-        # Remove keys with None values (optional, for cleaner JSON)
-        simplified_data = {k: v for k, v in simplified_data.items() if v is not None}
 
-        return jsonify(simplified_data)
-
+        return jsonify({k: v for k, v in simplified_data.items() if v is not None})
     except Exception as e:
-        print(f"Error during detailed weather fetch: {e}")
-        return jsonify({"error": "Failed to fetch detailed weather data"}), 500
+        print(f"Weather Error: {e}")
+        return jsonify({"error": "Failed to fetch weather data"}), 500
 
 
-
-# [--- MANDI API FIX (1) ---]
-# data.gov.in API ki key aur URL ko .env se load karein
-DATA_GOV_API_KEY = os.getenv('DATA_GOV_API_KEY')
-MANDI_API_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
-
-if not DATA_GOV_API_KEY:
-    print("WARNING: DATA_GOV_API_KEY environment variable not set! Mandi prices will fail.")
-
-
-# [--- MANDI API FIX (2) ---]
-# --- NAYA MANDI PRICE ROUTE ---
 @app.route('/get_mandi_prices', methods=['POST'])
 @token_required
 def handle_mandi_prices():
-    if not DATA_GOV_API_KEY:
-        return jsonify({"error": "Mandi API key is not configured on the server."}), 503
+    if not DATA_GOV_API_KEY: return jsonify({"error": "Mandi API key missing."}), 503
 
-    # 1. Frontend se data lein
     data = request.json
-    state = data.get('state')
-    commodity = data.get('commodity')
-    district = data.get('district')
-
-    if not state or not commodity:
+    if not data.get('state') or not data.get('commodity'):
         return jsonify({"error": "State and commodity are required."}), 400
 
-    # 2. Sarkaari API ko call karne ke liye parameters taiyaar karein
     params = {
         'api-key': DATA_GOV_API_KEY,
         'format': 'json',
-        'filters[state]': state,       # <-- 'state' (lowercase)
-        'filters[commodity]': commodity, # <-- 'commodity' (lowercase)
-        'limit': 50 # 50 results kaafi hain
+        'filters[state]': data.get('state'),
+        'filters[commodity]': data.get('commodity'),
+        'limit': 50
     }
-    if district:
-        params['filters[district]'] = district
+    if data.get('district'): params['filters[district]'] = data.get('district')
 
     try:
-        # 3. Sarkaari API ko request karein
         response = requests.get(MANDI_API_URL, params=params)
-        # [--- DEBUG FIX (1) ---]
-        # SERVER SE AAYA HUA RAW DATA PRINT KARO
-        # print("--- RAW MANDI API RESPONSE ---")
-        # print(response.json())
-        # print("------------------------------")
-        # [--- END FIX ---]
-        
-        if response.status_code != 200:
-            print(f"Mandi API Error: {response.text}")
-            return jsonify({"error": "Failed to fetch data from Mandi API."}), 502
+        response.raise_for_status()
 
-        mandi_data = response.json()
-        records = mandi_data.get('records', [])
-        # [--- DEBUG FIX (2) ---]
-        # 'records' key ko print karke dekho
-        # print(f"--- Found {len(records)} records ---")
-        # [--- END FIX ---]
+        records = response.json().get('records', [])
+        if not records: return jsonify([])
 
-        if not records:
-            # return jsonify({"error": "No records found for this state and commodity."}), 404
-            return jsonify([])
+        simplified_prices = [{
+            "mandi": r.get('market'),
+            "district": r.get('district'),
+            "price": r.get('modal_price'),
+            "date": r.get('arrival_date'),
+            "variety": r.get('variety'),
+            "min_price": r.get('min_price'),
+            "max_price": r.get('max_price')
+        } for r in records]
 
-        # 4. Data ko saaf (simplify) karein
-        # !! IMPORTANT !!: Yeh 'mandi', 'district', aur 'modal_price'
-        # sarkaari API se aane waale column ke naam hain.
-        # Agar yeh kaam na kare, toh humein in naamo ko badalna padega.
-        simplified_prices = []
-        for record in records:
-            simplified_prices.append({
-                "mandi": record.get('market'),
-                "district": record.get('district'),
-                "price": record.get('modal_price'),
-                "date": record.get('arrival_date'),  # <-- NAYA DATA
-                "variety": record.get('variety'),    # <-- NAYA DATA
-                "min_price": record.get('min_price'),  # <-- NAYA DATA
-                "max_price": record.get('max_price')   # <-- NAYA DATA
-            })
-
-            # simplified_prices ko bhi print karke dekhein
-        # print("--- SIMPLIFIED DATA ---")
-        # print(simplified_prices)
-        # print("-----------------------")
-
-        # 5. Saaf data frontend ko bhej dein
         return jsonify(simplified_prices)
 
-    except requests.exceptions.RequestException as e:
-        print(f"Mandi API Request Exception: {e}")
-        return jsonify({"error": "Could not connect to Mandi API service."}), 504
     except Exception as e:
-        print(f"Mandi Data Processing Error: {e}")
+        print(f"Mandi Data Error: {e}")
         return jsonify({"error": "Error processing Mandi data."}), 500
-# [--- END FIX ---]
 
-
-
-
-
+""" =====================================================================
+    SECTION 6: MAIN EXECUTION
+====================================================================="""
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

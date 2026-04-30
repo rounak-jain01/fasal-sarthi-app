@@ -43,9 +43,9 @@ function Header() {
       <div className="flex items-center space-x-2 md:space-x-4">
       {/* [--- END FIX ---] */}
         
-        <button className="p-2 text-gray-600 hover:text-gray-900">
+        <div className="p-2 text-gray-600 hover:text-gray-900">
           <LanguageSwitcher />
-        </button>
+        </div>
         
         <Link 
           to="/edit-profile" 
